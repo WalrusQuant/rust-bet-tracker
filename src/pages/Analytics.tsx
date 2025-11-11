@@ -10,6 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import Header from '@/components/Header';
 
 interface Bet {
   id: string;
@@ -283,19 +284,24 @@ export default function Analytics() {
 
   if (!user) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in required</CardTitle>
-            <CardDescription>Please sign in to view your analytics.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <>
+        <Header />
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sign in required</CardTitle>
+              <CardDescription>Please sign in to view your analytics.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <>
+      <Header />
+      <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Performance Analytics</h1>
         <p className="text-muted-foreground">Visualize your betting performance with detailed charts and metrics</p>
@@ -403,6 +409,7 @@ export default function Analytics() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
