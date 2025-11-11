@@ -49,6 +49,14 @@ const Header = () => {
             </NavLink>
 
             <NavLink 
+              to="/analytics" 
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              activeClassName="text-primary font-medium"
+            >
+              Analytics
+            </NavLink>
+
+            <NavLink 
               to="/about" 
               className="text-muted-foreground hover:text-foreground transition-colors"
               activeClassName="text-primary font-medium"

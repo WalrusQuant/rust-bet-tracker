@@ -16,6 +16,7 @@ import KellyCriterion from "./pages/KellyCriterion";
 import ExpectedValue from "./pages/ExpectedValue";
 import Auth from "./pages/Auth";
 import BetTracker from "./pages/BetTracker";
+import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/bet-tracker" element={<BetTracker />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/odds-converter" element={<OddsConverter />} />
             <Route path="/implied-probability" element={<ImpliedProbability />} />
             <Route path="/parlay-calculator" element={<ParlayCalculator />} />
