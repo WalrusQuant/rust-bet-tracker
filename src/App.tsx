@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
+import Calculators from "./pages/Calculators";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import OddsConverter from "./pages/OddsConverter";
 import ImpliedProbability from "./pages/ImpliedProbability";
@@ -26,6 +28,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/calculators" element={<Calculators />} />
+            <Route path="/about" element={<About />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/bet-tracker" element={<BetTracker />} />
             <Route path="/odds-converter" element={<OddsConverter />} />
