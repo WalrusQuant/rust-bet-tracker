@@ -38,8 +38,9 @@ const ArbitrageCalculator = () => {
 
     if (numOutcomes === "2") {
       arbPercentage = (1 / decimal1 + 1 / decimal2) * 100;
-      stake1 = stake / (1 + decimal2 / decimal1);
-      stake2 = stake / (1 + decimal1 / decimal2);
+      const totalInverse = 1 / decimal1 + 1 / decimal2;
+      stake1 = (stake * (1 / decimal1)) / totalInverse;
+      stake2 = (stake * (1 / decimal2)) / totalInverse;
       payout = stake1 * decimal1;
       profit = payout - stake;
     } else {
