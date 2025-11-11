@@ -14,44 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      bet_types: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bets: {
         Row: {
           bet_date: string
-          bet_type: string
+          bet_type_id: string | null
+          closing_odds: number | null
           created_at: string
+          fair_odds: number | null
           id: string
+          league_id: string | null
           odds: number
           outcome: string
-          sport: string
+          sportsbook_id: string | null
           stake: number
           updated_at: string
           user_id: string
         }
         Insert: {
           bet_date: string
-          bet_type: string
+          bet_type_id?: string | null
+          closing_odds?: number | null
           created_at?: string
+          fair_odds?: number | null
           id?: string
+          league_id?: string | null
           odds: number
           outcome: string
-          sport: string
+          sportsbook_id?: string | null
           stake: number
           updated_at?: string
           user_id: string
         }
         Update: {
           bet_date?: string
-          bet_type?: string
+          bet_type_id?: string | null
+          closing_odds?: number | null
           created_at?: string
+          fair_odds?: number | null
           id?: string
+          league_id?: string | null
           odds?: number
           outcome?: string
-          sport?: string
+          sportsbook_id?: string | null
           stake?: number
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bets_bet_type_id_fkey"
+            columns: ["bet_type_id"]
+            isOneToOne: false
+            referencedRelation: "bet_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bets_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bets_sportsbook_id_fkey"
+            columns: ["sportsbook_id"]
+            isOneToOne: false
+            referencedRelation: "sportsbooks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bets_user_id_fkey"
             columns: ["user_id"]
@@ -60,6 +111,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      leagues: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -76,6 +148,27 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+        }
+        Relationships: []
+      }
+      sportsbooks: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
         }
         Relationships: []
       }
