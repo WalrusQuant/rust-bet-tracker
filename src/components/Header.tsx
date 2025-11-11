@@ -1,14 +1,25 @@
 import { NavLink } from "@/components/NavLink";
 import walrusLogo from "@/assets/walrus-logo.png";
-import { ChevronDown, ArrowLeftRight, Percent, Calculator, Scale, TrendingUp, DollarSign } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Percent, Calculator, Scale, TrendingUp, DollarSign, LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Header = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
@@ -25,6 +36,14 @@ const Header = () => {
               activeClassName="text-primary font-medium"
             >
               Home
+            </NavLink>
+
+            <NavLink 
+              to="/bet-tracker" 
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              activeClassName="text-primary font-medium"
+            >
+              Bet Tracker
             </NavLink>
             
             <DropdownMenu>
@@ -71,6 +90,18 @@ const Header = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {user ? (
+              <Button variant="ghost" onClick={handleSignOut} className="flex items-center gap-2">
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </Button>
+            ) : (
+              <Button variant="default" onClick={() => navigate('/auth')} className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Sign In
+              </Button>
+            )}
           </nav>
         </div>
       </div>
