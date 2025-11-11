@@ -1,5 +1,12 @@
 import { NavLink } from "@/components/NavLink";
 import walrusLogo from "@/assets/walrus-logo.png";
+import { ChevronDown, ArrowLeftRight, Percent, Calculator, Scale, TrendingUp, DollarSign } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   return (
@@ -19,13 +26,51 @@ const Header = () => {
             >
               Home
             </NavLink>
-            <NavLink 
-              to="/odds-converter" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-primary font-medium"
-            >
-              Calculators
-            </NavLink>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors outline-none">
+                Calculators
+                <ChevronDown className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-card z-50" align="end">
+                <DropdownMenuItem asChild>
+                  <NavLink to="/odds-converter" className="flex items-center gap-2 cursor-pointer">
+                    <ArrowLeftRight className="w-4 h-4" />
+                    Odds Converter
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <NavLink to="/implied-probability" className="flex items-center gap-2 cursor-pointer">
+                    <Percent className="w-4 h-4" />
+                    Implied Probability
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <NavLink to="/parlay-calculator" className="flex items-center gap-2 cursor-pointer">
+                    <Calculator className="w-4 h-4" />
+                    Parlay Calculator
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <NavLink to="/arbitrage-calculator" className="flex items-center gap-2 cursor-pointer">
+                    <Scale className="w-4 h-4" />
+                    Arbitrage Calculator
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <NavLink to="/kelly-criterion" className="flex items-center gap-2 cursor-pointer">
+                    <TrendingUp className="w-4 h-4" />
+                    Kelly Criterion
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <NavLink to="/expected-value" className="flex items-center gap-2 cursor-pointer">
+                    <DollarSign className="w-4 h-4" />
+                    Expected Value
+                  </NavLink>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </div>
       </div>
