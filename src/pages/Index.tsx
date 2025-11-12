@@ -3,12 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeftRight, Calculator, TrendingUp, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
 const Index = () => {
   const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Header />
       
       {/* Hero Section */}
@@ -20,24 +17,13 @@ const Index = () => {
           <p className="text-2xl md:text-3xl text-muted-foreground mb-4">
             Professional Sports Betting Tools
           </p>
-          <p className="text-lg md:text-xl text-muted-foreground mb-12">
-            Free calculators and bet tracking built by a profitable bettor
-          </p>
+          <p className="text-lg md:text-xl text-muted-foreground mb-12">Free calculators and bet tracking built by a breakeven bettor</p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              onClick={() => navigate('/calculators')}
-              className="text-lg px-8 py-6"
-            >
+            <Button size="lg" onClick={() => navigate('/calculators')} className="text-lg px-8 py-6">
               Try Calculators
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              onClick={() => navigate('/bet-tracker')}
-              className="text-lg px-8 py-6"
-            >
+            <Button size="lg" variant="outline" onClick={() => navigate('/bet-tracker')} className="text-lg px-8 py-6">
               Track Your Bets
             </Button>
           </div>
@@ -80,11 +66,7 @@ const Index = () => {
                   <p className="text-sm text-muted-foreground">Optimize your bet sizing strategy</p>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                className="w-full mt-4"
-                onClick={() => navigate('/calculators')}
-              >
+              <Button variant="outline" className="w-full mt-4" onClick={() => navigate('/calculators')}>
                 View All Calculators
               </Button>
             </CardContent>
@@ -120,18 +102,13 @@ const Index = () => {
                   <span>Export your betting history to CSV</span>
                 </li>
               </ul>
-              <Button 
-                className="w-full mt-4"
-                onClick={() => navigate('/bet-tracker')}
-              >
+              <Button className="w-full mt-4" onClick={() => navigate('/bet-tracker')}>
                 Start Tracking
               </Button>
             </CardContent>
           </Card>
         </div>
       </section>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
