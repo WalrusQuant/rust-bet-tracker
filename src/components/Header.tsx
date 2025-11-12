@@ -48,29 +48,33 @@ const Header = () => {
               Bet Tracker
             </NavLink>
 
-            <NavLink 
-              to="/analytics" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-primary font-medium"
-            >
-              Analytics
-            </NavLink>
+            {user && (
+              <>
+                <NavLink 
+                  to="/analytics" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  activeClassName="text-primary font-medium"
+                >
+                  Analytics
+                </NavLink>
 
-            <NavLink 
-              to="/bankroll" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-primary font-medium"
-            >
-              Bankroll
-            </NavLink>
+                <NavLink 
+                  to="/bankroll" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  activeClassName="text-primary font-medium"
+                >
+                  Bankroll
+                </NavLink>
 
-            <NavLink 
-              to="/tag-management" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-primary font-medium"
-            >
-              Manage Tags
-            </NavLink>
+                <NavLink 
+                  to="/tag-management" 
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  activeClassName="text-primary font-medium"
+                >
+                  Manage Tags
+                </NavLink>
+              </>
+            )}
 
             <NavLink 
               to="/about" 
