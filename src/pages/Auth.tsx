@@ -10,6 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import Header from '@/components/Header';
+import { z } from 'zod';
+
+const authSchema = z.object({
+  email: z.string().trim().email('Invalid email format').max(255, 'Email must be less than 255 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(100, 'Password must be less than 100 characters')
+});
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -28,6 +34,18 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Validate input
+    const validation = authSchema.safeParse({ email, password });
+    if (!validation.success) {
+      toast({
+        title: 'Validation Error',
+        description: validation.error.errors[0].message,
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -64,6 +82,18 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Validate input
+    const validation = authSchema.safeParse({ email, password });
+    if (!validation.success) {
+      toast({
+        title: 'Validation Error',
+        description: validation.error.errors[0].message,
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
