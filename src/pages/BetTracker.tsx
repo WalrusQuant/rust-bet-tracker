@@ -94,6 +94,7 @@ const BetTracker = () => {
   const [showNewLeague, setShowNewLeague] = useState(false);
   const [showNewBetType, setShowNewBetType] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
 
   useEffect(() => {
     if (!user) {
@@ -170,29 +171,74 @@ const BetTracker = () => {
     }
   };
 
-  const bulkImportBets = async () => {
-    if (!user) return;
+  const downloadTemplate = () => {
+    const headers = ['Date', 'Sportsbook', 'League', 'Bet Type', 'Betting Odds', 'Fair Odds', 'Closing Odds', 'Stake', 'Status', 'Note'];
+    const exampleRow = ['2025-11-02', 'DraftKings', 'NBA', 'Spread', '-110', '-110', '-106', '20', 'won', 'Lakers -5.5'];
     
+    const csvContent = [
+      headers.join(','),
+      exampleRow.join(','),
+      // Add a few empty rows for user to fill
+      ',,,,,,,,,',
+      ',,,,,,,,,',
+      ',,,,,,,,,',
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bet_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
     setIsImporting(true);
     try {
-      // Data from the uploaded image
-      const betsToImport = [
-        { date: '2025-11-02', sportsbook: 'DraftKings', league: 'NBA', betType: 'Spread', odds: -110, fairOdds: -110, closingOdds: -106, stake: 20, outcome: 'won', notes: 'Lakers-5.5' },
-        { date: '2025-10-28', sportsbook: 'BetMGM', league: 'NFL', betType: 'Team Total', odds: -115, fairOdds: -118, closingOdds: -112, stake: 20, outcome: 'won', notes: 'Eagles over 24.5' },
-        { date: '2025-11-02', sportsbook: 'Caesars', league: 'NCAAFB', betType: 'Moneyline', odds: -420, fairOdds: -445, closingOdds: -410, stake: 20, outcome: 'won', notes: 'Georgia ML' },
-        { date: '2025-11-05', sportsbook: 'FanDuel', league: 'NHL', betType: 'Total', odds: -105, fairOdds: -102, closingOdds: -108, stake: 20, outcome: 'lost', notes: 'Bruins/Habs U 6.5' },
-        { date: '2025-11-08', sportsbook: 'DraftKings', league: 'NBA', betType: 'Spread', odds: -112, fairOdds: -115, closingOdds: -110, stake: 20, outcome: 'pending', notes: 'Celtics -7' },
-        { date: '2025-09-28', sportsbook: 'BetMGM', league: 'MLB', betType: 'Team Total', odds: -125, fairOdds: -122, closingOdds: -128, stake: 20, outcome: 'won', notes: 'Braves TT O4.5' },
-        { date: '2025-10-13', sportsbook: 'Caesars', league: 'NFL', betType: 'Total', odds: -110, fairOdds: -112, closingOdds: -108, stake: 20, outcome: 'lost', notes: '49ers/Cowboys O 48' },
-        { date: '2025-09-19', sportsbook: 'FanDuel', league: 'NCAAFB', betType: 'Spread', odds: -108, fairOdds: -110, closingOdds: -112, stake: 20, outcome: 'lost', notes: 'Ohio State -14' },
-        { date: '2025-10-24', sportsbook: 'DraftKings', league: 'NBA', betType: 'Moneyline', odds: -165, fairOdds: -170, closingOdds: -162, stake: 20, outcome: 'won', notes: 'Bucks ML' },
-        { date: '2025-10-30', sportsbook: 'BetMGM', league: 'NHL', betType: 'Spread', odds: 185, fairOdds: 178, closingOdds: 188, stake: 20, outcome: 'lost', notes: 'Rangers -1.5' },
-        { date: '2025-11-03', sportsbook: 'Caesars', league: 'NFL', betType: 'Spread', odds: -105, fairOdds: -108, closingOdds: -102, stake: 20, outcome: 'won', notes: 'Ravens -6.5' },
-        { date: '2025-11-06', sportsbook: 'FanDuel', league: 'NBA', betType: 'Total', odds: -110, fairOdds: -115, closingOdds: -108, stake: 20, outcome: 'pending', notes: 'Warriors O22.5' },
-        { date: '2025-09-22', sportsbook: 'DraftKings', league: 'MLB', betType: 'Spread', odds: -140, fairOdds: -135, closingOdds: -145, stake: 20, outcome: 'won', notes: 'Astros F5 -0.5' },
-        { date: '2025-10-27', sportsbook: 'BetMGM', league: 'NCAAFB', betType: 'Spread', odds: -108, fairOdds: -105, closingOdds: -110, stake: 20, outcome: 'lost', notes: 'Texas +3' },
-        { date: '2025-11-09', sportsbook: 'Caesars', league: 'NHL', betType: 'Moneyline', odds: -155, fairOdds: -160, closingOdds: -152, stake: 20, outcome: 'pending', notes: 'Panthers ML' },
-      ];
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      // Skip header row
+      const dataLines = lines.slice(1);
+      
+      const betsToImport: Array<{
+        date: string;
+        sportsbook: string;
+        league: string;
+        betType: string;
+        odds: number;
+        fairOdds: number | null;
+        closingOdds: number | null;
+        stake: number;
+        outcome: string;
+        notes: string;
+      }> = [];
+
+      for (const line of dataLines) {
+        const columns = line.split(',').map(col => col.trim());
+        if (columns.length < 9 || !columns[0]) continue; // Skip empty rows
+
+        betsToImport.push({
+          date: columns[0],
+          sportsbook: columns[1],
+          league: columns[2],
+          betType: columns[3],
+          odds: parseInt(columns[4]),
+          fairOdds: columns[5] ? parseInt(columns[5]) : null,
+          closingOdds: columns[6] ? parseInt(columns[6]) : null,
+          stake: parseFloat(columns[7]),
+          outcome: columns[8].toLowerCase(),
+          notes: columns[9] || '',
+        });
+      }
+
+      if (betsToImport.length === 0) {
+        throw new Error('No valid bets found in file');
+      }
 
       // Get or create sportsbooks, leagues, and bet types
       const sportsbookMap = new Map<string, string>();
@@ -274,11 +320,16 @@ const BetTracker = () => {
       });
 
       await fetchAllData();
+      
+      // Reset file input
+      if (event.target) {
+        event.target.value = '';
+      }
     } catch (error) {
       console.error('Import error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to import bets',
+        description: 'Failed to import bets. Please check your CSV format.',
         variant: 'destructive',
       });
     } finally {
@@ -846,9 +897,21 @@ const BetTracker = () => {
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button variant="outline" onClick={bulkImportBets} disabled={isImporting}>
-            {isImporting ? 'Importing...' : 'Import Sample Bets'}
+          <Button variant="outline" onClick={downloadTemplate}>
+            <Download className="mr-2 h-4 w-4" />
+            Download Template
           </Button>
+          <Button variant="outline" onClick={() => document.getElementById('csv-upload')?.click()} disabled={isImporting}>
+            <Plus className="mr-2 h-4 w-4" />
+            {isImporting ? 'Importing...' : 'Import from CSV'}
+          </Button>
+          <input
+            id="csv-upload"
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
         </div>
 
         {/* Bets Table */}
