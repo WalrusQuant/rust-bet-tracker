@@ -124,7 +124,7 @@ const Bankroll = () => {
           unit_sizing_method: tempSettings.unit_sizing_method,
           unit_size_value: tempSettings.unit_size_value,
           kelly_fraction: tempSettings.kelly_fraction,
-        });
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
 
