@@ -24,14 +24,14 @@ export function calculateProfit(odds: number, stake: number): number {
 
 /**
  * Calculate Expected Value (EV) percentage
- * EV = (Fair Odds Implied Probability × Payout) - (Loss Probability × Stake)
+ * EV = (Win Probability × Profit) - (Loss Probability × Stake)
  */
 export function calculateEV(betOdds: number, fairOdds: number, stake: number): number {
   const fairProbability = americanToImpliedProbability(fairOdds);
-  const payout = stake + calculateProfit(betOdds, stake);
+  const profit = calculateProfit(betOdds, stake);
   const lossProbability = 1 - fairProbability;
   
-  const ev = (fairProbability * payout) - (lossProbability * stake);
+  const ev = (fairProbability * profit) - (lossProbability * stake);
   return (ev / stake) * 100; // Return as percentage
 }
 
