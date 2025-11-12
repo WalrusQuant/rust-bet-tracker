@@ -57,6 +57,14 @@ const Header = () => {
             </NavLink>
 
             <NavLink 
+              to="/tag-management" 
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              activeClassName="text-primary font-medium"
+            >
+              Manage Tags
+            </NavLink>
+
+            <NavLink 
               to="/about" 
               className="text-muted-foreground hover:text-foreground transition-colors"
               activeClassName="text-primary font-medium"
