@@ -93,6 +93,7 @@ const BetTracker = () => {
   const [showNewSportsbook, setShowNewSportsbook] = useState(false);
   const [showNewLeague, setShowNewLeague] = useState(false);
   const [showNewBetType, setShowNewBetType] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -166,6 +167,122 @@ const BetTracker = () => {
       setBetTypes(data || []);
     } catch (error) {
       console.error('Failed to fetch bet types:', error);
+    }
+  };
+
+  const bulkImportBets = async () => {
+    if (!user) return;
+    
+    setIsImporting(true);
+    try {
+      // Data from the uploaded image
+      const betsToImport = [
+        { date: '2025-11-02', sportsbook: 'DraftKings', league: 'NBA', betType: 'Spread', odds: -110, fairOdds: -110, closingOdds: -106, stake: 20, outcome: 'won', notes: 'Lakers-5.5' },
+        { date: '2025-10-28', sportsbook: 'BetMGM', league: 'NFL', betType: 'Team Total', odds: -115, fairOdds: -118, closingOdds: -112, stake: 20, outcome: 'won', notes: 'Eagles over 24.5' },
+        { date: '2025-11-02', sportsbook: 'Caesars', league: 'NCAAFB', betType: 'Moneyline', odds: -420, fairOdds: -445, closingOdds: -410, stake: 20, outcome: 'won', notes: 'Georgia ML' },
+        { date: '2025-11-05', sportsbook: 'FanDuel', league: 'NHL', betType: 'Total', odds: -105, fairOdds: -102, closingOdds: -108, stake: 20, outcome: 'lost', notes: 'Bruins/Habs U 6.5' },
+        { date: '2025-11-08', sportsbook: 'DraftKings', league: 'NBA', betType: 'Spread', odds: -112, fairOdds: -115, closingOdds: -110, stake: 20, outcome: 'pending', notes: 'Celtics -7' },
+        { date: '2025-09-28', sportsbook: 'BetMGM', league: 'MLB', betType: 'Team Total', odds: -125, fairOdds: -122, closingOdds: -128, stake: 20, outcome: 'won', notes: 'Braves TT O4.5' },
+        { date: '2025-10-13', sportsbook: 'Caesars', league: 'NFL', betType: 'Total', odds: -110, fairOdds: -112, closingOdds: -108, stake: 20, outcome: 'lost', notes: '49ers/Cowboys O 48' },
+        { date: '2025-09-19', sportsbook: 'FanDuel', league: 'NCAAFB', betType: 'Spread', odds: -108, fairOdds: -110, closingOdds: -112, stake: 20, outcome: 'lost', notes: 'Ohio State -14' },
+        { date: '2025-10-24', sportsbook: 'DraftKings', league: 'NBA', betType: 'Moneyline', odds: -165, fairOdds: -170, closingOdds: -162, stake: 20, outcome: 'won', notes: 'Bucks ML' },
+        { date: '2025-10-30', sportsbook: 'BetMGM', league: 'NHL', betType: 'Spread', odds: 185, fairOdds: 178, closingOdds: 188, stake: 20, outcome: 'lost', notes: 'Rangers -1.5' },
+        { date: '2025-11-03', sportsbook: 'Caesars', league: 'NFL', betType: 'Spread', odds: -105, fairOdds: -108, closingOdds: -102, stake: 20, outcome: 'won', notes: 'Ravens -6.5' },
+        { date: '2025-11-06', sportsbook: 'FanDuel', league: 'NBA', betType: 'Total', odds: -110, fairOdds: -115, closingOdds: -108, stake: 20, outcome: 'pending', notes: 'Warriors O22.5' },
+        { date: '2025-09-22', sportsbook: 'DraftKings', league: 'MLB', betType: 'Spread', odds: -140, fairOdds: -135, closingOdds: -145, stake: 20, outcome: 'won', notes: 'Astros F5 -0.5' },
+        { date: '2025-10-27', sportsbook: 'BetMGM', league: 'NCAAFB', betType: 'Spread', odds: -108, fairOdds: -105, closingOdds: -110, stake: 20, outcome: 'lost', notes: 'Texas +3' },
+        { date: '2025-11-09', sportsbook: 'Caesars', league: 'NHL', betType: 'Moneyline', odds: -155, fairOdds: -160, closingOdds: -152, stake: 20, outcome: 'pending', notes: 'Panthers ML' },
+      ];
+
+      // Get or create sportsbooks, leagues, and bet types
+      const sportsbookMap = new Map<string, string>();
+      const leagueMap = new Map<string, string>();
+      const betTypeMap = new Map<string, string>();
+
+      // Process unique sportsbooks
+      const uniqueSportsbooks = [...new Set(betsToImport.map(b => b.sportsbook))];
+      for (const name of uniqueSportsbooks) {
+        const existing = sportsbooks.find(s => s.name === name);
+        if (existing) {
+          sportsbookMap.set(name, existing.id);
+        } else {
+          const { data, error } = await supabase
+            .from('sportsbooks')
+            .insert({ name, user_id: user.id })
+            .select()
+            .single();
+          if (error) throw error;
+          sportsbookMap.set(name, data.id);
+        }
+      }
+
+      // Process unique leagues
+      const uniqueLeagues = [...new Set(betsToImport.map(b => b.league))];
+      for (const name of uniqueLeagues) {
+        const existing = leagues.find(l => l.name === name);
+        if (existing) {
+          leagueMap.set(name, existing.id);
+        } else {
+          const { data, error } = await supabase
+            .from('leagues')
+            .insert({ name, user_id: user.id })
+            .select()
+            .single();
+          if (error) throw error;
+          leagueMap.set(name, data.id);
+        }
+      }
+
+      // Process unique bet types
+      const uniqueBetTypes = [...new Set(betsToImport.map(b => b.betType))];
+      for (const name of uniqueBetTypes) {
+        const existing = betTypes.find(bt => bt.name === name);
+        if (existing) {
+          betTypeMap.set(name, existing.id);
+        } else {
+          const { data, error } = await supabase
+            .from('bet_types')
+            .insert({ name, user_id: user.id })
+            .select()
+            .single();
+          if (error) throw error;
+          betTypeMap.set(name, data.id);
+        }
+      }
+
+      // Insert all bets
+      const betsToInsert = betsToImport.map(bet => ({
+        user_id: user.id,
+        bet_date: bet.date,
+        sportsbook_id: sportsbookMap.get(bet.sportsbook),
+        league_id: leagueMap.get(bet.league),
+        bet_type_id: betTypeMap.get(bet.betType),
+        odds: bet.odds,
+        fair_odds: bet.fairOdds,
+        closing_odds: bet.closingOdds,
+        stake: bet.stake,
+        outcome: bet.outcome,
+        notes: bet.notes,
+      }));
+
+      const { error } = await supabase.from('bets').insert(betsToInsert);
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Imported ${betsToImport.length} bets successfully`,
+      });
+
+      await fetchAllData();
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to import bets',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -728,6 +845,9 @@ const BetTracker = () => {
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
+          </Button>
+          <Button variant="outline" onClick={bulkImportBets} disabled={isImporting}>
+            {isImporting ? 'Importing...' : 'Import Sample Bets'}
           </Button>
         </div>
 
