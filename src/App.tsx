@@ -18,6 +18,7 @@ import Auth from "./pages/Auth";
 import BetTracker from "./pages/BetTracker";
 import Analytics from "./pages/Analytics";
 import TagManagement from "./pages/TagManagement";
+import Bankroll from "./pages/Bankroll";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/bet-tracker" element={<BetTracker />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/bankroll" element={<Bankroll />} />
             <Route path="/tag-management" element={<TagManagement />} />
             <Route path="/odds-converter" element={<OddsConverter />} />
             <Route path="/implied-probability" element={<ImpliedProbability />} />

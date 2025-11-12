@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      bankroll_settings: {
+        Row: {
+          created_at: string
+          id: string
+          kelly_fraction: string
+          starting_bankroll: number
+          unit_size_value: number
+          unit_sizing_method: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kelly_fraction?: string
+          starting_bankroll?: number
+          unit_size_value?: number
+          unit_sizing_method?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kelly_fraction?: string
+          starting_bankroll?: number
+          unit_size_value?: number
+          unit_sizing_method?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bet_types: {
         Row: {
           created_at: string | null
