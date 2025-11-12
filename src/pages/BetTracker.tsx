@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, Download, Plus } from 'lucide-react';
+import { Edit, Trash2, Download, Plus, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -45,6 +46,7 @@ interface Bet {
   closing_odds: number | null;
   stake: number;
   outcome: 'pending' | 'won' | 'lost' | 'push';
+  notes: string | null;
   sportsbooks?: { name: string } | null;
   leagues?: { name: string } | null;
   bet_types?: { name: string } | null;
@@ -67,6 +69,8 @@ const BetTracker = () => {
   const [filterOutcome, setFilterOutcome] = useState<string>('all');
   const [editingBet, setEditingBet] = useState<Bet | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewingBet, setViewingBet] = useState<Bet | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   // Form state
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -79,6 +83,7 @@ const BetTracker = () => {
     closing_odds: '',
     stake: '',
     outcome: 'pending' as 'pending' | 'won' | 'lost' | 'push',
+    notes: '',
   });
 
   // New tag creation state
@@ -245,6 +250,7 @@ const BetTracker = () => {
         closing_odds: formData.closing_odds ? parseInt(formData.closing_odds) : null,
         stake: parseFloat(formData.stake),
         outcome: formData.outcome,
+        notes: formData.notes || null,
       };
 
       if (editingBet) {
@@ -285,6 +291,7 @@ const BetTracker = () => {
       closing_odds: '',
       stake: '',
       outcome: 'pending',
+      notes: '',
     });
     setSelectedDate(new Date());
     setEditingBet(null);
@@ -318,8 +325,14 @@ const BetTracker = () => {
       closing_odds: bet.closing_odds?.toString() || '',
       stake: bet.stake.toString(),
       outcome: bet.outcome,
+      notes: bet.notes || '',
     });
     setIsDialogOpen(true);
+  };
+
+  const handleViewDetails = (bet: Bet) => {
+    setViewingBet(bet);
+    setIsDetailsDialogOpen(true);
   };
 
   const calculateStats = () => {
@@ -598,6 +611,17 @@ const BetTracker = () => {
                   </Select>
                 </div>
 
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Add any notes about this bet (reasoning, context, etc.)"
+                    rows={4}
+                  />
+                </div>
+
                 <Button type="submit" className="w-full">
                   {editingBet ? 'Update Bet' : 'Add Bet'}
                 </Button>
@@ -743,7 +767,7 @@ const BetTracker = () => {
                       const clv = bet.closing_odds ? calculateCLV(bet.odds, bet.closing_odds) : null;
                       
                       return (
-                        <TableRow key={bet.id}>
+                        <TableRow key={bet.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleViewDetails(bet)}>
                           <TableCell className="whitespace-nowrap">{bet.bet_date}</TableCell>
                           <TableCell>{bet.sportsbooks?.name || '-'}</TableCell>
                           <TableCell>{bet.leagues?.name || '-'}</TableCell>
@@ -772,7 +796,7 @@ const BetTracker = () => {
                               {bet.outcome}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex gap-2">
                               <Button variant="ghost" size="icon" onClick={() => handleEdit(bet)}>
                                 <Edit className="h-4 w-4" />
@@ -791,6 +815,130 @@ const BetTracker = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Bet Details Dialog */}
+        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Bet Details</DialogTitle>
+            </DialogHeader>
+            {viewingBet && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Date</Label>
+                    <p className="font-medium">{format(new Date(viewingBet.bet_date), 'PPP')}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <p>
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        viewingBet.outcome === 'won' ? 'bg-green-500/20 text-green-500' :
+                        viewingBet.outcome === 'lost' ? 'bg-red-500/20 text-red-500' :
+                        viewingBet.outcome === 'push' ? 'bg-blue-500/20 text-blue-500' :
+                        'bg-yellow-500/20 text-yellow-500'
+                      }`}>
+                        {viewingBet.outcome}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Sportsbook</Label>
+                    <p className="font-medium">{viewingBet.sportsbooks?.name || '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">League</Label>
+                    <p className="font-medium">{viewingBet.leagues?.name || '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Bet Type</Label>
+                    <p className="font-medium">{viewingBet.bet_types?.name || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Bet Odds</Label>
+                    <p className="font-mono text-lg">{formatAmericanOdds(viewingBet.odds)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Stake</Label>
+                    <p className="text-lg">${viewingBet.stake}</p>
+                  </div>
+                </div>
+
+                {viewingBet.fair_odds && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground">Fair Odds</Label>
+                      <p className="font-mono">{formatAmericanOdds(viewingBet.fair_odds)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Expected Value (EV)</Label>
+                      <p className={`font-medium ${calculateEV(viewingBet.odds, viewingBet.fair_odds, viewingBet.stake) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {calculateEV(viewingBet.odds, viewingBet.fair_odds, viewingBet.stake).toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {viewingBet.closing_odds && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground">Closing Odds</Label>
+                      <p className="font-mono">{formatAmericanOdds(viewingBet.closing_odds)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Closing Line Value (CLV)</Label>
+                      <p className={`font-medium ${calculateCLV(viewingBet.odds, viewingBet.closing_odds) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {calculateCLV(viewingBet.odds, viewingBet.closing_odds).toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {(viewingBet.outcome === 'won' || viewingBet.outcome === 'lost') && (
+                  <div>
+                    <Label className="text-muted-foreground">Profit/Loss</Label>
+                    <p className={`text-xl font-bold ${
+                      viewingBet.outcome === 'won' 
+                        ? 'text-green-500' 
+                        : 'text-red-500'
+                    }`}>
+                      {viewingBet.outcome === 'won' 
+                        ? `+$${calculateProfit(viewingBet.odds, viewingBet.stake).toFixed(2)}`
+                        : `-$${viewingBet.stake.toFixed(2)}`
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {viewingBet.notes && (
+                  <div>
+                    <Label className="text-muted-foreground">Notes</Label>
+                    <div className="mt-2 p-4 bg-muted rounded-lg">
+                      <p className="whitespace-pre-wrap">{viewingBet.notes}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>Close</Button>
+                  <Button onClick={() => {
+                    setIsDetailsDialogOpen(false);
+                    handleEdit(viewingBet);
+                  }}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Bet
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

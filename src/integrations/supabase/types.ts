@@ -44,6 +44,7 @@ export type Database = {
           fair_odds: number | null
           id: string
           league_id: string | null
+          notes: string | null
           odds: number
           outcome: string
           sportsbook_id: string | null
@@ -59,6 +60,7 @@ export type Database = {
           fair_odds?: number | null
           id?: string
           league_id?: string | null
+          notes?: string | null
           odds: number
           outcome: string
           sportsbook_id?: string | null
@@ -74,6 +76,7 @@ export type Database = {
           fair_odds?: number | null
           id?: string
           league_id?: string | null
+          notes?: string | null
           odds?: number
           outcome?: string
           sportsbook_id?: string | null
