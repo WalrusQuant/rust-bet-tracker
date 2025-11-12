@@ -897,13 +897,13 @@ const BetTracker = () => {
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button variant="outline" onClick={downloadTemplate}>
-            <Download className="mr-2 h-4 w-4" />
-            Download Template
-          </Button>
           <Button variant="outline" onClick={() => document.getElementById('csv-upload')?.click()} disabled={isImporting}>
             <Plus className="mr-2 h-4 w-4" />
             {isImporting ? 'Importing...' : 'Import from CSV'}
+          </Button>
+          <Button variant="outline" onClick={downloadTemplate}>
+            <Download className="mr-2 h-4 w-4" />
+            Template
           </Button>
           <input
             id="csv-upload"
