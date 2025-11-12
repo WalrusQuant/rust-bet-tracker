@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateEV, calculateCLV, calculateProfit, formatAmericanOdds } from '@/lib/oddsUtils';
+import { z } from 'zod';
 
 interface Sportsbook {
   id: string;
@@ -193,6 +194,19 @@ const BetTracker = () => {
     URL.revokeObjectURL(url);
   };
 
+  const betImportSchema = z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    sportsbook: z.string().trim().min(1, 'Sportsbook is required').max(100, 'Sportsbook name too long'),
+    league: z.string().trim().min(1, 'League is required').max(100, 'League name too long'),
+    betType: z.string().trim().min(1, 'Bet type is required').max(100, 'Bet type name too long'),
+    odds: z.number().int('Odds must be a whole number').min(-10000, 'Odds too low').max(10000, 'Odds too high'),
+    fairOdds: z.number().int('Fair odds must be a whole number').min(-10000, 'Fair odds too low').max(10000, 'Fair odds too high').nullable(),
+    closingOdds: z.number().int('Closing odds must be a whole number').min(-10000, 'Closing odds too low').max(10000, 'Closing odds too high').nullable(),
+    stake: z.number().positive('Stake must be positive').max(1000000, 'Stake too large'),
+    outcome: z.enum(['won', 'lost', 'push', 'pending'], { errorMap: () => ({ message: 'Outcome must be won, lost, push, or pending' }) }),
+    notes: z.string().max(1000, 'Notes too long').optional(),
+  });
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -218,11 +232,14 @@ const BetTracker = () => {
         notes: string;
       }> = [];
 
-      for (const line of dataLines) {
+      const validationErrors: string[] = [];
+
+      for (let i = 0; i < dataLines.length; i++) {
+        const line = dataLines[i];
         const columns = line.split(',').map(col => col.trim());
         if (columns.length < 9 || !columns[0]) continue; // Skip empty rows
 
-        betsToImport.push({
+        const rowData = {
           date: columns[0],
           sportsbook: columns[1],
           league: columns[2],
@@ -233,7 +250,26 @@ const BetTracker = () => {
           stake: parseFloat(columns[7]),
           outcome: columns[8].toLowerCase(),
           notes: columns[9] || '',
+        };
+
+        // Validate row data
+        const result = betImportSchema.safeParse(rowData);
+        if (!result.success) {
+          validationErrors.push(`Row ${i + 2}: ${result.error.errors.map(e => e.message).join(', ')}`);
+          continue;
+        }
+
+        betsToImport.push(rowData);
+      }
+
+      if (validationErrors.length > 0) {
+        toast({
+          title: 'Validation Errors',
+          description: `Found ${validationErrors.length} invalid rows. First error: ${validationErrors[0]}`,
+          variant: 'destructive',
         });
+        setIsImporting(false);
+        return;
       }
 
       if (betsToImport.length === 0) {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +43,7 @@ interface BetType {
 
 export default function Analytics() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [bets, setBets] = useState<Bet[]>([]);
   const [sportsbooks, setSportsbooks] = useState<Sportsbook[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -51,10 +53,12 @@ export default function Analytics() {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
-    if (user) {
-      fetchData();
+    if (!user) {
+      navigate('/auth');
+      return;
     }
-  }, [user]);
+    fetchData();
+  }, [user, navigate]);
 
   const fetchData = async () => {
     const [betsRes, sportsbooksRes, leaguesRes, betTypesRes] = await Promise.all([
