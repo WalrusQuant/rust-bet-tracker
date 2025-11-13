@@ -14,6 +14,9 @@ import ParlayCalculator from "./pages/ParlayCalculator";
 import ArbitrageCalculator from "./pages/ArbitrageCalculator";
 import KellyCriterion from "./pages/KellyCriterion";
 import ExpectedValue from "./pages/ExpectedValue";
+import NoVigOdds from "./pages/NoVigOdds";
+import HedgeCalculator from "./pages/HedgeCalculator";
+import CLVCalculator from "./pages/CLVCalculator";
 import Auth from "./pages/Auth";
 import BetTracker from "./pages/BetTracker";
 import Analytics from "./pages/Analytics";
@@ -44,6 +47,9 @@ const App = () => (
             <Route path="/arbitrage-calculator" element={<ArbitrageCalculator />} />
             <Route path="/kelly-criterion" element={<KellyCriterion />} />
             <Route path="/expected-value" element={<ExpectedValue />} />
+            <Route path="/calculators/no-vig-odds" element={<NoVigOdds />} />
+            <Route path="/calculators/hedge" element={<HedgeCalculator />} />
+            <Route path="/calculators/clv" element={<CLVCalculator />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
