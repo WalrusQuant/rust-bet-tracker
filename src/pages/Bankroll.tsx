@@ -73,7 +73,7 @@ const Bankroll = () => {
   const [transactionForm, setTransactionForm] = useState({
     transaction_type: 'deposit' as 'deposit' | 'withdrawal',
     amount: '',
-    sportsbook_id: '',
+    sportsbook_id: 'none',
     notes: '',
   });
 
@@ -224,7 +224,7 @@ const Bankroll = () => {
           transaction_type: transactionForm.transaction_type,
           amount,
           transaction_date: format(transactionDate, 'yyyy-MM-dd'),
-          sportsbook_id: transactionForm.sportsbook_id || null,
+          sportsbook_id: transactionForm.sportsbook_id && transactionForm.sportsbook_id !== 'none' ? transactionForm.sportsbook_id : null,
           notes: transactionForm.notes || null,
         });
 
@@ -239,7 +239,7 @@ const Bankroll = () => {
       setTransactionForm({
         transaction_type: 'deposit',
         amount: '',
-        sportsbook_id: '',
+        sportsbook_id: 'none',
         notes: '',
       });
       setTransactionDate(new Date());
@@ -475,7 +475,7 @@ const Bankroll = () => {
                       <Select value={transactionForm.sportsbook_id} onValueChange={(value) => setTransactionForm({ ...transactionForm, sportsbook_id: value })}>
                         <SelectTrigger><SelectValue placeholder="Select sportsbook" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {sportsbooks.map((sb) => <SelectItem key={sb.id} value={sb.id}>{sb.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
