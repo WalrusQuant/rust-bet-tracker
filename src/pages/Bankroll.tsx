@@ -10,13 +10,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { calculateProfit, calculateEV, americanToImpliedProbability } from '@/lib/oddsUtils';
+import { calculateProfit } from '@/lib/oddsUtils';
 import { format } from 'date-fns';
-import { TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Target, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface BankrollSettings {
   starting_bankroll: number;
-  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount';
+  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly';
   unit_size_value: number;
   kelly_fraction: 'full' | 'half' | 'quarter';
 }
@@ -28,6 +35,21 @@ interface Bet {
   fair_odds: number | null;
   stake: number;
   outcome: string;
+}
+
+interface Transaction {
+  id: string;
+  transaction_type: 'deposit' | 'withdrawal';
+  amount: number;
+  transaction_date: string;
+  sportsbook_id: string | null;
+  notes: string | null;
+  sportsbooks?: { name: string } | null;
+}
+
+interface Sportsbook {
+  id: string;
+  name: string;
 }
 
 const Bankroll = () => {
@@ -42,8 +64,18 @@ const Bankroll = () => {
     kelly_fraction: 'half',
   });
   const [bets, setBets] = useState<Bet[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [sportsbooks, setSportsbooks] = useState<Sportsbook[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [tempSettings, setTempSettings] = useState<BankrollSettings>(settings);
+  const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  const [transactionDate, setTransactionDate] = useState<Date>(new Date());
+  const [transactionForm, setTransactionForm] = useState({
+    transaction_type: 'deposit' as 'deposit' | 'withdrawal',
+    amount: '',
+    sportsbook_id: '',
+    notes: '',
+  });
 
   useEffect(() => {
     if (!user) {
@@ -52,6 +84,8 @@ const Bankroll = () => {
     }
     fetchBankrollSettings();
     fetchBets();
+    fetchTransactions();
+    fetchSportsbooks();
   }, [user, navigate]);
 
   const fetchBankrollSettings = async () => {
@@ -67,14 +101,13 @@ const Bankroll = () => {
       if (data) {
         const loadedSettings = {
           starting_bankroll: Number(data.starting_bankroll),
-          unit_sizing_method: data.unit_sizing_method as 'fixed_percent' | 'kelly' | 'fixed_amount',
+          unit_sizing_method: data.unit_sizing_method as 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly',
           unit_size_value: Number(data.unit_size_value),
           kelly_fraction: data.kelly_fraction as 'full' | 'half' | 'quarter',
         };
         setSettings(loadedSettings);
         setTempSettings(loadedSettings);
       } else {
-        // Create default settings
         await createDefaultSettings();
       }
     } catch (error) {
@@ -114,6 +147,34 @@ const Bankroll = () => {
     }
   };
 
+  const fetchTransactions = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('transactions')
+        .select('*, sportsbooks(name)')
+        .order('transaction_date', { ascending: true });
+
+      if (error) throw error;
+      setTransactions((data || []) as Transaction[]);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    }
+  };
+
+  const fetchSportsbooks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sportsbooks')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setSportsbooks(data || []);
+    } catch (error) {
+      console.error('Error fetching sportsbooks:', error);
+    }
+  };
+
   const handleSaveSettings = async () => {
     try {
       const { error } = await supabase
@@ -124,97 +185,135 @@ const Bankroll = () => {
           unit_sizing_method: tempSettings.unit_sizing_method,
           unit_size_value: tempSettings.unit_size_value,
           kelly_fraction: tempSettings.kelly_fraction,
-        }, { onConflict: 'user_id' });
+        });
 
       if (error) throw error;
 
       setSettings(tempSettings);
       setIsEditing(false);
-      toast({ title: 'Success', description: 'Bankroll settings updated' });
+      toast({
+        title: "Settings saved",
+        description: "Your bankroll settings have been updated.",
+      });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update settings', variant: 'destructive' });
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save settings.",
+        variant: "destructive",
+      });
     }
   };
 
-  // Calculate current bankroll
-  const settledBets = bets.filter(bet => bet.outcome === 'won' || bet.outcome === 'lost');
-  const totalProfitLoss = settledBets.reduce((sum, bet) => {
-    if (bet.outcome === 'won') {
-      return sum + calculateProfit(bet.odds, bet.stake);
-    } else if (bet.outcome === 'lost') {
-      return sum - bet.stake;
+  const handleAddTransaction = async () => {
+    try {
+      const amount = parseFloat(transactionForm.amount);
+      if (isNaN(amount) || amount <= 0) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid amount.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await (supabase as any)
+        .from('transactions')
+        .insert({
+          user_id: user?.id,
+          transaction_type: transactionForm.transaction_type,
+          amount,
+          transaction_date: format(transactionDate, 'yyyy-MM-dd'),
+          sportsbook_id: transactionForm.sportsbook_id || null,
+          notes: transactionForm.notes || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Transaction added",
+        description: `${transactionForm.transaction_type === 'deposit' ? 'Deposit' : 'Withdrawal'} of $${amount} recorded.`,
+      });
+
+      setIsTransactionDialogOpen(false);
+      setTransactionForm({
+        transaction_type: 'deposit',
+        amount: '',
+        sportsbook_id: '',
+        notes: '',
+      });
+      setTransactionDate(new Date());
+      fetchTransactions();
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add transaction.",
+        variant: "destructive",
+      });
     }
+  };
+
+  // Calculate metrics
+  const totalDeposits = transactions.filter(t => t.transaction_type === 'deposit').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalWithdrawals = transactions.filter(t => t.transaction_type === 'withdrawal').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalProfitLoss = bets.reduce((sum, bet) => {
+    if (bet.outcome === 'won') return sum + calculateProfit(bet.odds, bet.stake);
+    if (bet.outcome === 'lost') return sum - bet.stake;
     return sum;
   }, 0);
 
-  const currentBankroll = settings.starting_bankroll + totalProfitLoss;
+  const currentBankroll = settings.starting_bankroll + totalDeposits - totalWithdrawals + totalProfitLoss;
+  
+  // Calculate history
+  const bankrollHistory: { date: string; bankroll: number }[] = [];
+  let runningBankroll = settings.starting_bankroll;
+  bankrollHistory.push({ date: 'Start', bankroll: runningBankroll });
 
-  // Calculate bankroll history for chart
-  const bankrollHistory = settledBets.reduce((acc, bet, index) => {
-    let profit = 0;
-    if (bet.outcome === 'won') {
-      profit = calculateProfit(bet.odds, bet.stake);
-    } else if (bet.outcome === 'lost') {
-      profit = -bet.stake;
+  const timeline = [
+    ...bets.map(bet => ({ date: bet.bet_date, type: 'bet' as const, data: bet })),
+    ...transactions.map(t => ({ date: t.transaction_date, type: 'transaction' as const, data: t }))
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  timeline.forEach(item => {
+    if (item.type === 'bet') {
+      const bet = item.data as Bet;
+      if (bet.outcome === 'won') runningBankroll += calculateProfit(bet.odds, bet.stake);
+      else if (bet.outcome === 'lost') runningBankroll -= bet.stake;
+    } else {
+      const transaction = item.data as Transaction;
+      if (transaction.transaction_type === 'deposit') runningBankroll += Number(transaction.amount);
+      else runningBankroll -= Number(transaction.amount);
     }
+    bankrollHistory.push({ date: format(new Date(item.date), 'MMM dd'), bankroll: Number(runningBankroll.toFixed(2)) });
+  });
 
-    const previousBankroll = index === 0 ? settings.starting_bankroll : acc[index - 1].bankroll;
-    const newBankroll = previousBankroll + profit;
+  const allTimeHigh = Math.max(...bankrollHistory.map(h => h.bankroll));
+  const currentDrawdown = ((currentBankroll - allTimeHigh) / allTimeHigh) * 100;
+  const roi = settings.starting_bankroll > 0 ? ((totalProfitLoss / settings.starting_bankroll) * 100) : 0;
 
-    acc.push({
-      date: format(new Date(bet.bet_date), 'MM/dd'),
-      bankroll: Number(newBankroll.toFixed(2)),
+  const transactionHistory = transactions.map((transaction, index) => {
+    let balance = settings.starting_bankroll;
+    for (let i = 0; i <= index; i++) {
+      if (transactions[i].transaction_type === 'deposit') balance += Number(transactions[i].amount);
+      else balance -= Number(transactions[i].amount);
+    }
+    bets.filter(bet => bet.bet_date <= transaction.transaction_date).forEach(bet => {
+      if (bet.outcome === 'won') balance += calculateProfit(bet.odds, bet.stake);
+      else if (bet.outcome === 'lost') balance -= bet.stake;
     });
-
-    return acc;
-  }, [] as Array<{ date: string; bankroll: number }>);
-
-  // Calculate all-time high and drawdown
-  const allTimeHigh = Math.max(settings.starting_bankroll, ...bankrollHistory.map(h => h.bankroll));
-  const currentDrawdown = allTimeHigh > currentBankroll 
-    ? ((allTimeHigh - currentBankroll) / allTimeHigh) * 100 
-    : 0;
-
-  // Calculate ROI
-  const roi = ((currentBankroll - settings.starting_bankroll) / settings.starting_bankroll) * 100;
-
-  // Calculate recommended unit size
-  const getRecommendedBetSize = (betOdds?: number, fairOdds?: number): number => {
-    if (settings.unit_sizing_method === 'fixed_amount') {
-      return settings.unit_size_value;
-    }
-
-    if (settings.unit_sizing_method === 'fixed_percent') {
-      return (currentBankroll * settings.unit_size_value) / 100;
-    }
-
-    // Kelly Criterion
-    if (betOdds && fairOdds) {
-      const fairProb = americanToImpliedProbability(fairOdds);
-      const decimalOdds = betOdds > 0 ? (betOdds / 100) + 1 : (100 / Math.abs(betOdds)) + 1;
-      const kellyFraction = fairProb - ((1 - fairProb) / (decimalOdds - 1));
-      
-      let adjustedKelly = kellyFraction;
-      if (settings.kelly_fraction === 'half') adjustedKelly = kellyFraction / 2;
-      if (settings.kelly_fraction === 'quarter') adjustedKelly = kellyFraction / 4;
-
-      // Cap at 10% of bankroll for safety
-      const recommendedPercent = Math.max(0, Math.min(adjustedKelly * 100, 10));
-      return (currentBankroll * recommendedPercent) / 100;
-    }
-
-    return (currentBankroll * 2) / 100; // Default to 2% if no odds provided
-  };
+    return { ...transaction, runningBalance: balance };
+  });
 
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto px-4 py-8">
           <Card>
             <CardHeader>
               <CardTitle>Sign in required</CardTitle>
-              <CardDescription>Please sign in to manage your bankroll.</CardDescription>
+              <CardDescription>Please sign in to view your bankroll management.</CardDescription>
             </CardHeader>
           </Card>
         </div>
@@ -225,238 +324,263 @@ const Bankroll = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Bankroll Management</h1>
-          <p className="text-muted-foreground">Track and optimize your betting bankroll</p>
-        </div>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <h1 className="text-3xl font-bold">Bankroll Management</h1>
 
-        {/* Bankroll Dashboard */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        {/* Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Starting Bankroll
-              </CardDescription>
-              <CardTitle className="text-3xl">${settings.starting_bankroll.toFixed(2)}</CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Current Bankroll
-              </CardDescription>
-              <CardTitle className={`text-3xl ${currentBankroll >= settings.starting_bankroll ? 'text-green-500' : 'text-red-500'}`}>
-                ${currentBankroll.toFixed(2)}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2">
-                {roi >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
-                ROI
-              </CardDescription>
-              <CardTitle className={`text-3xl ${roi >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {roi.toFixed(1)}%
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                All-Time High
-              </CardDescription>
-              <CardTitle className="text-3xl">${allTimeHigh.toFixed(2)}</CardTitle>
-              {currentDrawdown > 0 && (
-                <p className="text-sm text-red-500 mt-1">
-                  Drawdown: -{currentDrawdown.toFixed(1)}%
-                </p>
-              )}
-            </CardHeader>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2 mb-8">
-          {/* Bankroll History Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bankroll History</CardTitle>
-              <CardDescription>Track your bankroll growth over time</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Starting Bankroll</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {bankrollHistory.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No bet history yet. Start tracking bets to see your bankroll growth.
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={bankrollHistory}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="bankroll" stroke="hsl(var(--primary))" name="Bankroll ($)" />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
+              <div className="text-2xl font-bold">${settings.starting_bankroll.toFixed(2)}</div>
             </CardContent>
           </Card>
 
-          {/* Unit Size Calculator */}
           <Card>
-            <CardHeader>
-              <CardTitle>Recommended Unit Size</CardTitle>
-              <CardDescription>Based on your current settings and bankroll</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Current Bankroll</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Current Method</Label>
-                <p className="text-2xl font-bold">
-                  {settings.unit_sizing_method === 'fixed_percent' && `${settings.unit_size_value}% of Bankroll`}
-                  {settings.unit_sizing_method === 'fixed_amount' && `$${settings.unit_size_value} Fixed`}
-                  {settings.unit_sizing_method === 'kelly' && `Kelly Criterion (${settings.kelly_fraction})`}
-                </p>
-              </div>
+            <CardContent>
+              <div className="text-2xl font-bold">${currentBankroll.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                {currentBankroll >= settings.starting_bankroll ? '+' : ''}
+                ${(currentBankroll - settings.starting_bankroll).toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label>Recommended Bet Size</Label>
-                <p className="text-3xl font-bold text-primary">
-                  ${getRecommendedBetSize().toFixed(2)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {((getRecommendedBetSize() / currentBankroll) * 100).toFixed(2)}% of current bankroll
-                </p>
-              </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">All-Time High</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${allTimeHigh.toFixed(2)}</div>
+              {currentDrawdown < 0 && <p className="text-xs text-destructive">{currentDrawdown.toFixed(2)}% drawdown</p>}
+            </CardContent>
+          </Card>
 
-              {settings.unit_sizing_method === 'kelly' && (
-                <div className="bg-muted p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Kelly sizing requires Fair Odds. The recommended size will adjust based on the EV of each bet.
-                  </p>
-                </div>
-              )}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">ROI</CardTitle>
+              {roi >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${roi >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {roi >= 0 ? '+' : ''}{roi.toFixed(2)}%
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Settings */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Total Deposited</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-success">+${totalDeposits.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Total Withdrawn</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-destructive">-${totalWithdrawals.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Net Betting P/L</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-xl font-bold ${totalProfitLoss >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {totalProfitLoss >= 0 ? '+' : ''}${totalProfitLoss.toFixed(2)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Bankroll History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={bankrollHistory}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="bankroll" stroke="hsl(var(--primary))" strokeWidth={2} name="Bankroll" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Transactions */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>Bankroll Settings</CardTitle>
-                <CardDescription>Configure your bankroll management preferences</CardDescription>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>Deposits and withdrawals</CardDescription>
               </div>
-              {!isEditing && (
-                <Button onClick={() => setIsEditing(true)}>Edit Settings</Button>
-              )}
+              <Dialog open={isTransactionDialogOpen} onOpenChange={setIsTransactionDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button><Plus className="h-4 w-4 mr-2" />Add Transaction</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add Transaction</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Transaction Type</Label>
+                      <Select value={transactionForm.transaction_type} onValueChange={(value: 'deposit' | 'withdrawal') => setTransactionForm({ ...transactionForm, transaction_type: value })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="deposit">Deposit</SelectItem>
+                          <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Amount ($)</Label>
+                      <Input type="number" step="0.01" value={transactionForm.amount} onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })} placeholder="100.00" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !transactionDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {transactionDate ? format(transactionDate, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar mode="single" selected={transactionDate} onSelect={(date) => date && setTransactionDate(date)} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sportsbook/Site (Optional)</Label>
+                      <Select value={transactionForm.sportsbook_id} onValueChange={(value) => setTransactionForm({ ...transactionForm, sportsbook_id: value })}>
+                        <SelectTrigger><SelectValue placeholder="Select sportsbook" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {sportsbooks.map((sb) => <SelectItem key={sb.id} value={sb.id}>{sb.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Notes (Optional)</Label>
+                      <Textarea value={transactionForm.notes} onChange={(e) => setTransactionForm({ ...transactionForm, notes: e.target.value })} placeholder="Tax refund, etc." rows={3} />
+                    </div>
+                    <Button onClick={handleAddTransaction} className="w-full">Add Transaction</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
+          </CardHeader>
+          <CardContent>
+            {transactionHistory.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">No transactions yet</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Sportsbook</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="text-right">Balance After</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactionHistory.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>{format(new Date(transaction.transaction_date), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell><span className={transaction.transaction_type === 'deposit' ? 'text-success' : 'text-destructive'}>{transaction.transaction_type === 'deposit' ? 'Deposit' : 'Withdrawal'}</span></TableCell>
+                      <TableCell className={transaction.transaction_type === 'deposit' ? 'text-success' : 'text-destructive'}>{transaction.transaction_type === 'deposit' ? '+' : '-'}${Number(transaction.amount).toFixed(2)}</TableCell>
+                      <TableCell>{transaction.sportsbooks?.name || '-'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{transaction.notes || '-'}</TableCell>
+                      <TableCell className="text-right font-medium">${transaction.runningBalance.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Bankroll Settings</CardTitle>
+            <CardDescription>Configure your unit sizing method</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="starting_bankroll">Starting Bankroll ($)</Label>
-              <Input
-                id="starting_bankroll"
-                type="number"
-                step="0.01"
-                value={tempSettings.starting_bankroll}
-                onChange={(e) => setTempSettings({ ...tempSettings, starting_bankroll: parseFloat(e.target.value) || 0 })}
-                disabled={!isEditing}
-              />
+              <Label>Starting Bankroll ($)</Label>
+              <Input type="number" step="0.01" value={isEditing ? tempSettings.starting_bankroll : settings.starting_bankroll} onChange={(e) => setTempSettings({ ...tempSettings, starting_bankroll: parseFloat(e.target.value) || 0 })} disabled={!isEditing} />
+              <p className="text-xs text-muted-foreground">One-time initial amount</p>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="unit_sizing_method">Unit Sizing Method</Label>
-              <Select
-                value={tempSettings.unit_sizing_method}
-                onValueChange={(value: 'fixed_percent' | 'kelly' | 'fixed_amount') =>
-                  setTempSettings({ ...tempSettings, unit_sizing_method: value })
-                }
-                disabled={!isEditing}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Label>Unit Sizing Method</Label>
+              <Select value={isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method} onValueChange={(value: any) => setTempSettings({ ...tempSettings, unit_sizing_method: value })} disabled={!isEditing}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fixed_percent">Fixed Percentage</SelectItem>
-                  <SelectItem value="fixed_amount">Fixed Dollar Amount</SelectItem>
+                  <SelectItem value="fixed_amount">Fixed Amount ($)</SelectItem>
+                  <SelectItem value="fixed_percent">Fixed Percentage (%)</SelectItem>
                   <SelectItem value="kelly">Kelly Criterion</SelectItem>
+                  <SelectItem value="fractional_kelly">Fractional Kelly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {tempSettings.unit_sizing_method === 'fixed_percent' && (
+            {(isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'fixed_amount' && (
               <div className="space-y-2">
-                <Label htmlFor="unit_size_value">Percentage of Bankroll (%)</Label>
-                <Input
-                  id="unit_size_value"
-                  type="number"
-                  step="0.1"
-                  value={tempSettings.unit_size_value}
-                  onChange={(e) => setTempSettings({ ...tempSettings, unit_size_value: parseFloat(e.target.value) || 0 })}
-                  disabled={!isEditing}
-                />
+                <Label>Fixed Amount ($)</Label>
+                <Input type="number" step="0.01" value={isEditing ? tempSettings.unit_size_value : settings.unit_size_value} onChange={(e) => setTempSettings({ ...tempSettings, unit_size_value: parseFloat(e.target.value) || 0 })} disabled={!isEditing} />
               </div>
             )}
-
-            {tempSettings.unit_sizing_method === 'fixed_amount' && (
+            {(isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'fixed_percent' && (
               <div className="space-y-2">
-                <Label htmlFor="unit_size_value">Fixed Bet Amount ($)</Label>
-                <Input
-                  id="unit_size_value"
-                  type="number"
-                  step="0.01"
-                  value={tempSettings.unit_size_value}
-                  onChange={(e) => setTempSettings({ ...tempSettings, unit_size_value: parseFloat(e.target.value) || 0 })}
-                  disabled={!isEditing}
-                />
+                <Label>Fixed Percentage (%)</Label>
+                <Input type="number" step="0.1" value={isEditing ? tempSettings.unit_size_value : settings.unit_size_value} onChange={(e) => setTempSettings({ ...tempSettings, unit_size_value: parseFloat(e.target.value) || 0 })} disabled={!isEditing} />
               </div>
             )}
-
-            {tempSettings.unit_sizing_method === 'kelly' && (
+            {((isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'kelly' || (isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'fractional_kelly') && (
               <div className="space-y-2">
-                <Label htmlFor="kelly_fraction">Kelly Fraction (Risk Tolerance)</Label>
-                <Select
-                  value={tempSettings.kelly_fraction}
-                  onValueChange={(value: 'full' | 'half' | 'quarter') =>
-                    setTempSettings({ ...tempSettings, kelly_fraction: value })
-                  }
-                  disabled={!isEditing}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Label>Kelly Fraction</Label>
+                <Select value={isEditing ? tempSettings.kelly_fraction : settings.kelly_fraction} onValueChange={(value: any) => setTempSettings({ ...tempSettings, kelly_fraction: value })} disabled={!isEditing}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full">Full Kelly (Aggressive)</SelectItem>
-                    <SelectItem value="half">Half Kelly (Moderate)</SelectItem>
-                    <SelectItem value="quarter">Quarter Kelly (Conservative)</SelectItem>
+                    <SelectItem value="quarter">Quarter Kelly</SelectItem>
+                    <SelectItem value="half">Half Kelly</SelectItem>
+                    <SelectItem value="full">Full Kelly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
-
-            {isEditing && (
-              <div className="flex gap-2 pt-4">
-                <Button onClick={handleSaveSettings}>Save Changes</Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setTempSettings(settings);
-                    setIsEditing(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)}>Edit Settings</Button>
+              ) : (
+                <>
+                  <Button onClick={handleSaveSettings}>Save Changes</Button>
+                  <Button variant="outline" onClick={() => { setTempSettings(settings); setIsEditing(false); }}>Cancel</Button>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
