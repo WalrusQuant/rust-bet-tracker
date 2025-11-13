@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -41,6 +42,11 @@ interface BetType {
   name: string;
 }
 
+interface Strategy {
+  id: string;
+  name: string;
+}
+
 export default function Analytics() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -48,6 +54,7 @@ export default function Analytics() {
   const [sportsbooks, setSportsbooks] = useState<Sportsbook[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [betTypes, setBetTypes] = useState<BetType[]>([]);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [selectedChart, setSelectedChart] = useState('pl-over-time');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -61,17 +68,27 @@ export default function Analytics() {
   }, [user, navigate]);
 
   const fetchData = async () => {
-    const [betsRes, sportsbooksRes, leaguesRes, betTypesRes] = await Promise.all([
-      supabase.from('bets').select('*').eq('user_id', user?.id).order('bet_date', { ascending: true }),
+    const [betsRes, sportsbooksRes, leaguesRes, betTypesRes, strategiesRes] = await Promise.all([
+      supabase.from('bets').select(`
+        *,
+        bet_strategies (
+          strategies (
+            id,
+            name
+          )
+        )
+      `).eq('user_id', user?.id).order('bet_date', { ascending: true }),
       supabase.from('sportsbooks').select('*').eq('user_id', user?.id),
       supabase.from('leagues').select('*').eq('user_id', user?.id),
       supabase.from('bet_types').select('*').eq('user_id', user?.id),
+      supabase.from('strategies').select('*').eq('user_id', user?.id),
     ]);
 
-    if (betsRes.data) setBets(betsRes.data as Bet[]);
+    if (betsRes.data) setBets(betsRes.data as any);
     if (sportsbooksRes.data) setSportsbooks(sportsbooksRes.data as Sportsbook[]);
     if (leaguesRes.data) setLeagues(leaguesRes.data as League[]);
     if (betTypesRes.data) setBetTypes(betTypesRes.data as BetType[]);
+    if (strategiesRes.data) setStrategies(strategiesRes.data as Strategy[]);
   };
 
   const filteredBets = bets.filter(bet => {
@@ -200,6 +217,30 @@ export default function Analytics() {
     return sum;
   }, 0);
   const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
+
+  // Performance by Strategy
+  const strategyPerformance = strategies.map(strategy => {
+    const strategyBets = settledBets.filter(bet => 
+      (bet as any).bet_strategies?.some((bs: any) => bs.strategies.id === strategy.id)
+    );
+    const strategyWins = strategyBets.filter(b => b.outcome === 'won').length;
+    const strategyWinRate = strategyBets.length > 0 ? (strategyWins / strategyBets.length) * 100 : 0;
+    const strategyProfit = strategyBets.reduce((sum, bet) => {
+      if (bet.outcome === 'won') return sum + calculateProfit(bet.odds, bet.stake);
+      if (bet.outcome === 'lost') return sum - bet.stake;
+      return sum;
+    }, 0);
+    const strategyStake = strategyBets.reduce((sum, bet) => sum + bet.stake, 0);
+    const strategyROI = strategyStake > 0 ? (strategyProfit / strategyStake) * 100 : 0;
+    
+    return {
+      name: strategy.name,
+      bets: strategyBets.length,
+      winRate: Number(strategyWinRate.toFixed(1)),
+      profit: Number(strategyProfit.toFixed(2)),
+      roi: Number(strategyROI.toFixed(1)),
+    };
+  }).filter(s => s.bets > 0).sort((a, b) => b.roi - a.roi);
 
   const renderChart = () => {
     switch (selectedChart) {

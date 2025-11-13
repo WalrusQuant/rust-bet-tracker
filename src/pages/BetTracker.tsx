@@ -36,6 +36,11 @@ interface BetType {
   name: string;
 }
 
+interface Strategy {
+  id: string;
+  name: string;
+}
+
 interface Bet {
   id: string;
   bet_date: string;
@@ -51,6 +56,7 @@ interface Bet {
   sportsbooks?: { name: string } | null;
   leagues?: { name: string } | null;
   bet_types?: { name: string } | null;
+  bet_strategies?: Array<{ strategies: { id: string; name: string } }>;
 }
 
 const BetTracker = () => {
@@ -62,6 +68,7 @@ const BetTracker = () => {
   const [sportsbooks, setSportsbooks] = useState<Sportsbook[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [betTypes, setBetTypes] = useState<BetType[]>([]);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [filterSportsbook, setFilterSportsbook] = useState<string>('all');
@@ -85,15 +92,18 @@ const BetTracker = () => {
     stake: '',
     outcome: 'pending' as 'pending' | 'won' | 'lost' | 'push',
     notes: '',
+    strategy_ids: [] as string[],
   });
 
   // New tag creation state
   const [newSportsbook, setNewSportsbook] = useState('');
   const [newLeague, setNewLeague] = useState('');
   const [newBetType, setNewBetType] = useState('');
+  const [newStrategy, setNewStrategy] = useState('');
   const [showNewSportsbook, setShowNewSportsbook] = useState(false);
   const [showNewLeague, setShowNewLeague] = useState(false);
   const [showNewBetType, setShowNewBetType] = useState(false);
+  const [showNewStrategy, setShowNewStrategy] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useState<HTMLInputElement | null>(null)[0];
 
@@ -439,6 +449,28 @@ const BetTracker = () => {
     }
   };
 
+  const createStrategy = async () => {
+    if (!user || !newStrategy.trim()) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('strategies')
+        .insert({ user_id: user.id, name: newStrategy.trim() })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      setStrategies([...strategies, data]);
+      setFormData({ ...formData, strategy_ids: [...formData.strategy_ids, data.id] });
+      setNewStrategy('');
+      setShowNewStrategy(false);
+      toast({ title: 'Success', description: 'Strategy added' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to add strategy', variant: 'destructive' });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -464,13 +496,36 @@ const BetTracker = () => {
           .eq('id', editingBet.id);
 
         if (error) throw error;
+
+        // Delete existing strategies and insert new ones
+        await supabase.from('bet_strategies').delete().eq('bet_id', editingBet.id);
+        if (formData.strategy_ids.length > 0) {
+          const strategyInserts = formData.strategy_ids.map(strategy_id => ({
+            bet_id: editingBet.id,
+            strategy_id,
+          }));
+          await supabase.from('bet_strategies').insert(strategyInserts);
+        }
+
         toast({ title: 'Success', description: 'Bet updated successfully' });
       } else {
-        const { error } = await supabase
+        const { data: newBet, error } = await supabase
           .from('bets')
-          .insert({ ...betData, user_id: user.id });
+          .insert({ ...betData, user_id: user.id })
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Insert strategies for new bet
+        if (formData.strategy_ids.length > 0 && newBet) {
+          const strategyInserts = formData.strategy_ids.map(strategy_id => ({
+            bet_id: newBet.id,
+            strategy_id,
+          }));
+          await supabase.from('bet_strategies').insert(strategyInserts);
+        }
+
         toast({ title: 'Success', description: 'Bet added successfully' });
       }
 
@@ -496,6 +551,7 @@ const BetTracker = () => {
       stake: '',
       outcome: 'pending',
       notes: '',
+      strategy_ids: [],
     });
     setSelectedDate(new Date());
     setEditingBet(null);
@@ -519,6 +575,7 @@ const BetTracker = () => {
 
   const handleEdit = (bet: Bet) => {
     setEditingBet(bet);
+    const strategyIds = bet.bet_strategies?.map(bs => bs.strategies.id) || [];
     setSelectedDate(new Date(bet.bet_date));
     setFormData({
       sportsbook_id: bet.sportsbook_id || '',
@@ -530,6 +587,7 @@ const BetTracker = () => {
       stake: bet.stake.toString(),
       outcome: bet.outcome,
       notes: bet.notes || '',
+      strategy_ids: strategyIds,
     });
     setIsDialogOpen(true);
   };
@@ -813,6 +871,50 @@ const BetTracker = () => {
                       <SelectItem value="push">Push</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label>Strategy Tags</Label>
+                  {showNewStrategy ? (
+                    <div className="flex gap-2">
+                      <Input
+                        value={newStrategy}
+                        onChange={(e) => setNewStrategy(e.target.value)}
+                        placeholder="Enter strategy name"
+                      />
+                      <Button type="button" onClick={createStrategy}>Add</Button>
+                      <Button type="button" variant="outline" onClick={() => setShowNewStrategy(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+                        {strategies.length > 0 ? (
+                          strategies.map((strategy) => (
+                            <label key={strategy.id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-muted/50 rounded px-2">
+                              <input
+                                type="checkbox"
+                                checked={formData.strategy_ids.includes(strategy.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData({ ...formData, strategy_ids: [...formData.strategy_ids, strategy.id] });
+                                  } else {
+                                    setFormData({ ...formData, strategy_ids: formData.strategy_ids.filter(id => id !== strategy.id) });
+                                  }
+                                }}
+                                className="rounded"
+                              />
+                              <span className="text-sm">{strategy.name}</span>
+                            </label>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-2 text-center">No strategies yet</p>
+                        )}
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowNewStrategy(true)} className="w-full">
+                        <Plus className="h-4 w-4 mr-1" /> Add New Strategy
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -34,18 +34,20 @@ const TagManagement = () => {
   const [sportsbooks, setSportsbooks] = useState<Tag[]>([]);
   const [leagues, setLeagues] = useState<Tag[]>([]);
   const [betTypes, setBetTypes] = useState<Tag[]>([]);
+  const [strategies, setStrategies] = useState<Tag[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingType, setEditingType] = useState<'sportsbook' | 'league' | 'betType' | null>(null);
+  const [editingType, setEditingType] = useState<'sportsbook' | 'league' | 'betType' | 'strategy' | null>(null);
 
   const [newSportsbook, setNewSportsbook] = useState('');
   const [newLeague, setNewLeague] = useState('');
   const [newBetType, setNewBetType] = useState('');
+  const [newStrategy, setNewStrategy] = useState('');
 
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
-    type: 'sportsbook' | 'league' | 'betType' | null;
+    type: 'sportsbook' | 'league' | 'betType' | 'strategy' | null;
     id: string | null;
     name: string;
     betCount: number;
@@ -66,7 +68,7 @@ const TagManagement = () => {
   }, [user, navigate]);
 
   const fetchAllTags = async () => {
-    await Promise.all([fetchSportsbooks(), fetchLeagues(), fetchBetTypes()]);
+    await Promise.all([fetchSportsbooks(), fetchLeagues(), fetchBetTypes(), fetchStrategies()]);
   };
 
   const fetchSportsbooks = async () => {
@@ -145,10 +147,35 @@ const TagManagement = () => {
     }
   };
 
-  const handleAdd = async (type: 'sportsbook' | 'league' | 'betType', name: string) => {
+  const fetchStrategies = async () => {
+    try {
+      const { data: strategiesData, error: strategiesError } = await supabase
+        .from('strategies')
+        .select('*')
+        .order('name');
+
+      if (strategiesError) throw strategiesError;
+
+      const strategiesWithCounts = await Promise.all(
+        (strategiesData || []).map(async (strategy) => {
+          const { count } = await supabase
+            .from('bet_strategies')
+            .select('*', { count: 'exact', head: true })
+            .eq('strategy_id', strategy.id);
+          return { ...strategy, bet_count: count || 0 };
+        })
+      );
+
+      setStrategies(strategiesWithCounts);
+    } catch (error) {
+      console.error('Failed to fetch strategies:', error);
+    }
+  };
+
+  const handleAdd = async (type: 'sportsbook' | 'league' | 'betType' | 'strategy', name: string) => {
     if (!user || !name.trim()) return;
 
-    const tableName = type === 'sportsbook' ? 'sportsbooks' : type === 'league' ? 'leagues' : 'bet_types';
+    const tableName = type === 'sportsbook' ? 'sportsbooks' : type === 'league' ? 'leagues' : type === 'betType' ? 'bet_types' : 'strategies';
 
     try {
       const { error } = await supabase
@@ -157,12 +184,14 @@ const TagManagement = () => {
 
       if (error) throw error;
 
-      toast({ title: 'Success', description: `${type === 'sportsbook' ? 'Sportsbook' : type === 'league' ? 'League' : 'Bet type'} added successfully` });
+      const displayName = type === 'sportsbook' ? 'Sportsbook' : type === 'league' ? 'League' : type === 'betType' ? 'Bet type' : 'Strategy';
+      toast({ title: 'Success', description: `${displayName} added successfully` });
 
       // Clear input and refresh
       if (type === 'sportsbook') setNewSportsbook('');
       else if (type === 'league') setNewLeague('');
-      else setNewBetType('');
+      else if (type === 'betType') setNewBetType('');
+      else setNewStrategy('');
 
       fetchAllTags();
     } catch (error) {
@@ -170,7 +199,7 @@ const TagManagement = () => {
     }
   };
 
-  const startEdit = (type: 'sportsbook' | 'league' | 'betType', id: string, name: string) => {
+  const startEdit = (type: 'sportsbook' | 'league' | 'betType' | 'strategy', id: string, name: string) => {
     setEditingType(type);
     setEditingId(id);
     setEditingName(name);
@@ -185,7 +214,7 @@ const TagManagement = () => {
   const handleUpdate = async () => {
     if (!editingId || !editingType || !editingName.trim()) return;
 
-    const tableName = editingType === 'sportsbook' ? 'sportsbooks' : editingType === 'league' ? 'leagues' : 'bet_types';
+    const tableName = editingType === 'sportsbook' ? 'sportsbooks' : editingType === 'league' ? 'leagues' : editingType === 'betType' ? 'bet_types' : 'strategies';
 
     try {
       const { error } = await supabase
@@ -203,7 +232,7 @@ const TagManagement = () => {
     }
   };
 
-  const openDeleteDialog = (type: 'sportsbook' | 'league' | 'betType', id: string, name: string, betCount: number) => {
+  const openDeleteDialog = (type: 'sportsbook' | 'league' | 'betType' | 'strategy', id: string, name: string, betCount: number) => {
     setDeleteDialog({
       open: true,
       type,
@@ -216,7 +245,7 @@ const TagManagement = () => {
   const handleDelete = async () => {
     if (!deleteDialog.id || !deleteDialog.type) return;
 
-    const tableName = deleteDialog.type === 'sportsbook' ? 'sportsbooks' : deleteDialog.type === 'league' ? 'leagues' : 'bet_types';
+    const tableName = deleteDialog.type === 'sportsbook' ? 'sportsbooks' : deleteDialog.type === 'league' ? 'leagues' : deleteDialog.type === 'betType' ? 'bet_types' : 'strategies';
 
     try {
       const { error } = await supabase
@@ -236,23 +265,25 @@ const TagManagement = () => {
 
   const renderTagTable = (
     tags: Tag[],
-    type: 'sportsbook' | 'league' | 'betType',
+    type: 'sportsbook' | 'league' | 'betType' | 'strategy',
     newValue: string,
     setNewValue: (value: string) => void
-  ) => (
+  ) => {
+    const displayName = type === 'sportsbook' ? 'Sportsbooks' : type === 'league' ? 'Sports/Leagues' : type === 'betType' ? 'Bet Types' : 'Strategies';
+    const singularName = type === 'sportsbook' ? 'sportsbook' : type === 'league' ? 'sport/league' : type === 'betType' ? 'bet type' : 'strategy';
+    
+    return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          {type === 'sportsbook' ? 'Sportsbooks' : type === 'league' ? 'Sports/Leagues' : 'Bet Types'}
-        </CardTitle>
+        <CardTitle>{displayName}</CardTitle>
         <CardDescription>
-          Manage your {type === 'sportsbook' ? 'sportsbook' : type === 'league' ? 'sport/league' : 'bet type'} tags
+          Manage your {singularName} tags
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex gap-2">
           <Input
-            placeholder={`Add new ${type === 'sportsbook' ? 'sportsbook' : type === 'league' ? 'league' : 'bet type'}...`}
+            placeholder={`Add new ${singularName}...`}
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={(e) => {
@@ -338,7 +369,8 @@ const TagManagement = () => {
         </Table>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   if (!user) {
     return (
@@ -371,6 +403,7 @@ const TagManagement = () => {
           {renderTagTable(sportsbooks, 'sportsbook', newSportsbook, setNewSportsbook)}
           {renderTagTable(leagues, 'league', newLeague, setNewLeague)}
           {renderTagTable(betTypes, 'betType', newBetType, setNewBetType)}
+          {renderTagTable(strategies, 'strategy', newStrategy, setNewStrategy)}
         </div>
 
         {/* Delete Confirmation Dialog */}
