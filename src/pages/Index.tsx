@@ -271,7 +271,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                9 Professional Betting Calculators (Free)
+              Nine Betting Calculators
             </h2>
             <p className="text-lg text-muted-foreground">
               All the math tools you need, included with your bet tracker
