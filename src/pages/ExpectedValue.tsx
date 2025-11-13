@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -168,6 +169,75 @@ const ExpectedValue = () => {
             <Button onClick={handleClear} variant="outline" className="w-full">
               Clear
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Educational Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Expected Value: The Only Bet That Matters</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              Expected Value (EV) is the average amount you expect to win or lose per bet over the long run. It's the single most important concept in sports betting.
+            </p>
+            
+            <div>
+              <p className="font-semibold text-foreground mb-2">The formula:</p>
+              <p>
+                EV = (Win Probability × Profit) - (Lose Probability × Stake)
+              </p>
+              <p className="mt-2">
+                <span className="font-semibold text-foreground">Positive EV (+EV):</span> You expect to profit long-term. These are the only bets you should make.
+              </p>
+              <p>
+                <span className="font-semibold text-foreground">Negative EV (-EV):</span> You expect to lose long-term. This is what recreational bettors bet into.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Example:</p>
+              <p>
+                You find a bet at +200 (3.00 decimal) that you estimate has a 40% chance to win.
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
+                <li>EV = (0.40 × $200) - (0.60 × $100) = $80 - $60 = +$20 EV</li>
+                <li>On average, this $100 bet will profit $20 long-term. That's a +20% EV bet.</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">The paradox:</p>
+              <p>
+                You can lose +EV bets and win -EV bets. A +20% EV bet still loses 60% of the time. The key is volume - make 100 of these bets and you'll likely be very profitable.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Where EV comes from:</p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Better information (injury news, weather, lineup changes)</li>
+                <li>Better models (your probability estimate is sharper than the market)</li>
+                <li>Line shopping (finding the best available odds)</li>
+                <li>Market inefficiencies (low-limit sports, props, live betting)</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">The professional approach:</p>
+              <p>
+                Track EV on every bet. Ignore short-term W/L. Focus on consistently finding and betting +EV opportunities. Long-term profit is guaranteed with enough volume.
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm">
+                Track your EV automatically with{" "}
+                <Link to="/bet-tracker" className="text-primary hover:underline font-semibold">
+                  WalrusQuant Bet Tracker
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

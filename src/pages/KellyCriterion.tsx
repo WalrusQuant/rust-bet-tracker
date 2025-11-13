@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -167,6 +168,69 @@ const KellyCriterion = () => {
             <Button onClick={handleClear} variant="outline" className="w-full">
               Clear
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Educational Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Kelly Criterion: Optimal Bet Sizing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              The Kelly Criterion is a mathematical formula for optimal bet sizing. It maximizes long-term bankroll growth while minimizing risk of ruin.
+            </p>
+            
+            <div>
+              <p className="font-semibold text-foreground mb-2">The formula:</p>
+              <p>
+                Bet% = (Edge / Odds)
+              </p>
+              <p className="mt-2">
+                Where edge = (Your estimated win probability) - (Implied probability from the odds)
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Example:</p>
+              <p>
+                You estimate a 55% win probability on a bet at -110 (52.4% implied). Your edge is 2.6%. Kelly says bet 2.6% of your bankroll.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Why Kelly works:</p>
+              <p>
+                It automatically bets more when your edge is bigger and less when your edge is smaller. It also scales with your bankroll - as you win, bet sizes increase; as you lose, bet sizes decrease.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Why use fractional Kelly:</p>
+              <p>
+                Full Kelly is mathematically optimal but leads to high volatility. Most professional bettors use Quarter Kelly or Half Kelly to reduce variance while still growing their bankroll.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">The reality:</p>
+              <p>
+                Kelly requires accurate probability estimates. If you overestimate your edge, you'll overbet and risk significant losses. Start with Quarter Kelly until you're confident in your ability to estimate true probabilities.
+              </p>
+              <p className="mt-2">
+                Kelly isn't magic - it's bankroll management math. It won't make -EV bets profitable, but it will help you maximize profit from +EV opportunities.
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm">
+                Let{" "}
+                <Link to="/bet-tracker" className="text-primary hover:underline font-semibold">
+                  WalrusQuant Bet Tracker
+                </Link>
+                {" "}calculate Kelly stakes for you automatically
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

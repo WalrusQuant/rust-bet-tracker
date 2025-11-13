@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -200,6 +201,62 @@ const ArbitrageCalculator = () => {
             <Button onClick={handleClear} variant="outline" className="w-full">
               Clear
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Educational Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Arbitrage Betting: Risk-Free Profit?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              Arbitrage (or 'arbing') is betting both sides of a market at different sportsbooks to guarantee profit regardless of outcome. When odds discrepancies exist across books, you can exploit them.
+            </p>
+            
+            <div>
+              <p className="font-semibold text-foreground mb-2">How it works:</p>
+              <p>
+                If Book A has Team A at +150 and Book B has Team B at +120, you might be able to bet both sides and profit no matter who wins. The calculator shows you the exact stakes needed.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Why opportunities exist:</p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Different books have different risk tolerance</li>
+                <li>Odds move at different speeds across books</li>
+                <li>Promotional odds or boosted bets create temporary gaps</li>
+                <li>International books vs US books often have discrepancies</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">The catches:</p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Arb opportunities close quickly (seconds to minutes)</li>
+                <li>Books limit or ban known arbers</li>
+                <li>You need accounts at many books with available funds</li>
+                <li>Small profit margins (typically 1-5%) require large stakes</li>
+                <li>Odds can change between placing bets</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Best for:</p>
+              <p>
+                New bettors using welcome bonuses, or as a side strategy while building your bankroll. For serious profit, focus on finding +EV bets rather than risk-free arbs.
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm">
+                Track all your bets with{" "}
+                <Link to="/bet-tracker" className="text-primary hover:underline font-semibold">
+                  WalrusQuant Bet Tracker
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -151,6 +152,57 @@ const ParlayCalculator = () => {
             <Button onClick={handleClear} variant="outline" className="w-full">
               Clear All
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Educational Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Parlay Math: Why Books Love Them</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              Parlays combine multiple bets into one ticket. All legs must win for the parlay to cash. The appeal? Huge payouts from small stakes. The reality? Exponentially harder to win.
+            </p>
+            
+            <div>
+              <p className="font-semibold text-foreground mb-2">How parlay odds work:</p>
+              <p>
+                Multiply the decimal odds of each leg together. A 3-leg parlay at -110 each (1.909 decimal) = 1.909 × 1.909 × 1.909 = 6.96 decimal odds (+596 American). That $100 bet pays $596.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Why books love parlays:</p>
+              <p className="mb-2">
+                Even if you pick winners at 55% (profitable long-term), your parlay hit rate drops fast:
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>2 legs: 30.25% hit rate</li>
+                <li>3 legs: 16.6% hit rate</li>
+                <li>4 legs: 9.1% hit rate</li>
+                <li>10 legs: 0.25% hit rate</li>
+              </ul>
+              <p className="mt-2">
+                The books also often pay less than true odds on parlays. A 2-team parlay should pay +264 true odds, but books typically pay +260.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Smart parlay strategy:</p>
+              <p>
+                Only parlay correlated outcomes (like team total OVER + game total OVER) where hitting one increases the chance of hitting the other. Or use them for entertainment with small stakes. For serious +EV betting, stick to single bets.
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm">
+                Track your parlay performance with{" "}
+                <Link to="/bet-tracker" className="text-primary hover:underline font-semibold">
+                  WalrusQuant Bet Tracker
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
