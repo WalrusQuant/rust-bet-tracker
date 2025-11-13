@@ -103,7 +103,7 @@ const BetTracker = () => {
     stake: '',
     outcome: 'pending' as 'pending' | 'won' | 'lost' | 'push',
     notes: '',
-    strategy_ids: [] as string[],
+    strategy_id: 'none',
   });
 
   // New tag creation state
@@ -151,7 +151,19 @@ const BetTracker = () => {
         .order('bet_date', { ascending: false });
 
       if (error) throw error;
-      setBets((data || []) as Bet[]);
+      
+      // Fetch strategies separately for each bet
+      const betsWithStrategies = await Promise.all(
+        (data || []).map(async (bet: any) => {
+          const { data: stratData } = await (supabase as any)
+            .from('bet_strategies')
+            .select('strategies(id, name)')
+            .eq('bet_id', bet.id);
+          return { ...bet, bet_strategies: stratData || [] };
+        })
+      );
+      
+      setBets(betsWithStrategies as Bet[]);
     } catch (error) {
       toast({
         title: 'Error',
@@ -562,7 +574,7 @@ const BetTracker = () => {
       if (error) throw error;
       
       setStrategies([...strategies, data as Strategy]);
-      setFormData({ ...formData, strategy_ids: [...formData.strategy_ids, data.id] });
+      setFormData({ ...formData, strategy_id: data.id });
       setNewStrategy('');
       setShowNewStrategy(false);
       toast({ title: 'Success', description: 'Strategy added' });
@@ -597,14 +609,13 @@ const BetTracker = () => {
 
         if (error) throw error;
 
-        // Delete existing strategies and insert new ones
+        // Delete existing strategies and insert new one
         await (supabase as any).from('bet_strategies').delete().eq('bet_id', editingBet.id);
-        if (formData.strategy_ids.length > 0) {
-          const strategyInserts = formData.strategy_ids.map(strategy_id => ({
+        if (formData.strategy_id && formData.strategy_id !== 'none') {
+          await (supabase as any).from('bet_strategies').insert({
             bet_id: editingBet.id,
-            strategy_id,
-          }));
-          await (supabase as any).from('bet_strategies').insert(strategyInserts);
+            strategy_id: formData.strategy_id,
+          });
         }
 
         toast({ title: 'Success', description: 'Bet updated successfully' });
@@ -617,13 +628,12 @@ const BetTracker = () => {
 
         if (error) throw error;
 
-        // Insert strategies for new bet
-        if (formData.strategy_ids.length > 0 && newBet) {
-          const strategyInserts = formData.strategy_ids.map(strategy_id => ({
+        // Insert strategy for new bet
+        if (formData.strategy_id && formData.strategy_id !== 'none' && newBet) {
+          await (supabase as any).from('bet_strategies').insert({
             bet_id: newBet.id,
-            strategy_id,
-          }));
-          await (supabase as any).from('bet_strategies').insert(strategyInserts);
+            strategy_id: formData.strategy_id,
+          });
         }
 
         toast({ title: 'Success', description: 'Bet added successfully' });
@@ -651,7 +661,7 @@ const BetTracker = () => {
       stake: '',
       outcome: 'pending',
       notes: '',
-      strategy_ids: [],
+      strategy_id: 'none',
     });
     setSelectedDate(new Date());
     setEditingBet(null);
@@ -675,7 +685,7 @@ const BetTracker = () => {
 
   const handleEdit = (bet: Bet) => {
     setEditingBet(bet);
-    const strategyIds = bet.bet_strategies?.map(bs => bs.strategies.id) || [];
+    const strategyId = bet.bet_strategies?.[0]?.strategies.id || 'none';
     setSelectedDate(new Date(bet.bet_date));
     setFormData({
       sportsbook_id: bet.sportsbook_id || '',
@@ -687,7 +697,7 @@ const BetTracker = () => {
       stake: bet.stake.toString(),
       outcome: bet.outcome,
       notes: bet.notes || '',
-      strategy_ids: strategyIds,
+      strategy_id: strategyId,
     });
     setIsDialogOpen(true);
   };
@@ -1014,7 +1024,7 @@ const BetTracker = () => {
                 </div>
 
                 <div>
-                  <Label>Strategy Tags</Label>
+                  <Label>Strategy Tag (Optional)</Label>
                   {showNewStrategy ? (
                     <div className="flex gap-2">
                       <Input
@@ -1026,32 +1036,20 @@ const BetTracker = () => {
                       <Button type="button" variant="outline" onClick={() => setShowNewStrategy(false)}>Cancel</Button>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                        {strategies.length > 0 ? (
-                          strategies.map((strategy) => (
-                            <label key={strategy.id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-muted/50 rounded px-2">
-                              <input
-                                type="checkbox"
-                                checked={formData.strategy_ids.includes(strategy.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setFormData({ ...formData, strategy_ids: [...formData.strategy_ids, strategy.id] });
-                                  } else {
-                                    setFormData({ ...formData, strategy_ids: formData.strategy_ids.filter(id => id !== strategy.id) });
-                                  }
-                                }}
-                                className="rounded"
-                              />
-                              <span className="text-sm">{strategy.name}</span>
-                            </label>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground py-2 text-center">No strategies yet</p>
-                        )}
-                      </div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setShowNewStrategy(true)} className="w-full">
-                        <Plus className="h-4 w-4 mr-1" /> Add New Strategy
+                    <div className="flex gap-2">
+                      <Select value={formData.strategy_id} onValueChange={(value) => setFormData({ ...formData, strategy_id: value })}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select strategy (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {strategies.map((strategy) => (
+                            <SelectItem key={strategy.id} value={strategy.id}>{strategy.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" size="icon" variant="outline" onClick={() => setShowNewStrategy(true)}>
+                        <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
