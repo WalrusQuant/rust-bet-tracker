@@ -1,42 +1,48 @@
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  ArrowLeftRight, 
-  Calculator, 
-  TrendingUp, 
-  BarChart3, 
-  CheckCircle2,
-  DollarSign,
-  Target,
-  Filter,
-  Download,
-  Tags,
-  LineChart,
-  PieChart,
-  Percent,
-  Shield,
-  Zap,
-  Users
-} from "lucide-react";
+import { ArrowLeftRight, Calculator, TrendingUp, BarChart3, CheckCircle2, DollarSign, Target, Filter, Download, Tags, LineChart, PieChart, Percent, Shield, Zap, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 const Index = () => {
   const navigate = useNavigate();
-  
-  const calculators = [
-    { title: "Odds Converter", icon: ArrowLeftRight, link: "/calculators/odds-converter" },
-    { title: "Implied Probability", icon: Percent, link: "/calculators/implied-probability" },
-    { title: "Parlay Calculator", icon: Calculator, link: "/calculators/parlay" },
-    { title: "Arbitrage Calculator", icon: TrendingUp, link: "/calculators/arbitrage" },
-    { title: "Kelly Criterion", icon: Target, link: "/calculators/kelly" },
-    { title: "Expected Value", icon: DollarSign, link: "/calculators/expected-value" },
-    { title: "No-Vig Odds", icon: Percent, link: "/calculators/no-vig-odds" },
-    { title: "Hedge Calculator", icon: Shield, link: "/calculators/hedge" },
-    { title: "CLV Calculator", icon: LineChart, link: "/calculators/clv" },
-  ];
-
-  return (
-    <div className="min-h-screen bg-background">
+  const calculators = [{
+    title: "Odds Converter",
+    icon: ArrowLeftRight,
+    link: "/calculators/odds-converter"
+  }, {
+    title: "Implied Probability",
+    icon: Percent,
+    link: "/calculators/implied-probability"
+  }, {
+    title: "Parlay Calculator",
+    icon: Calculator,
+    link: "/calculators/parlay"
+  }, {
+    title: "Arbitrage Calculator",
+    icon: TrendingUp,
+    link: "/calculators/arbitrage"
+  }, {
+    title: "Kelly Criterion",
+    icon: Target,
+    link: "/calculators/kelly"
+  }, {
+    title: "Expected Value",
+    icon: DollarSign,
+    link: "/calculators/expected-value"
+  }, {
+    title: "No-Vig Odds",
+    icon: Percent,
+    link: "/calculators/no-vig-odds"
+  }, {
+    title: "Hedge Calculator",
+    icon: Shield,
+    link: "/calculators/hedge"
+  }, {
+    title: "CLV Calculator",
+    icon: LineChart,
+    link: "/calculators/clv"
+  }];
+  return <div className="min-h-screen bg-background">
       <Header />
       
       {/* Hero Section */}
@@ -265,7 +271,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-              Plus: 9 Professional Betting Calculators (Free)
+                9 Professional Betting Calculators (Free)
             </h2>
             <p className="text-lg text-muted-foreground">
               All the math tools you need, included with your bet tracker
@@ -273,12 +279,7 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-            {calculators.map((calc) => (
-              <Card 
-                key={calc.title}
-                className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 hover:border-primary"
-                onClick={() => navigate(calc.link)}
-              >
+            {calculators.map(calc => <Card key={calc.title} className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 hover:border-primary" onClick={() => navigate(calc.link)}>
                 <CardHeader className="p-4 text-center">
                   <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary mx-auto mb-2">
                     <calc.icon className="w-5 h-5" />
@@ -287,8 +288,7 @@ const Index = () => {
                     {calc.title}
                   </CardTitle>
                 </CardHeader>
-              </Card>
-            ))}
+              </Card>)}
           </div>
 
           <div className="text-center">
@@ -357,7 +357,6 @@ const Index = () => {
           </p>
         </div>
       </section>
-    </div>
-  );
+    </div>;
 };
 export default Index;
