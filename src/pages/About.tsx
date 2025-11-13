@@ -1,6 +1,8 @@
 import Header from "@/components/Header";
+
 const About = () => {
-  return <div className="min-h-screen bg-background">
+  return (
+    <div className="min-h-screen bg-background">
       <Header />
       
       {/* Hero Section */}
@@ -11,23 +13,17 @@ const About = () => {
           </h1>
           
           {/* Main Content */}
-          <div className="space-y-6 text-lg text-foreground/90 mb-12">
-            <p>WalrusQuant is a sports betting tracking and analytics platform built by a breakeven sports bettor in an afternoon.</p>
+          <div className="space-y-6 text-lg text-foreground/90">
+            <p>The tracker logs everything you need - odds, stakes, closing lines, EV calculations, strategy tags, and notes. Nine betting calculators included. Export your data to CSV anytime.</p>
             
-            <p>I built the tool with clean bet tracking, real expected value calculations, closing line value analysis, and bankroll management that actually helps you make better decisions.</p>
+            <p>No picks selling, no affiliate spam, just tools for tracking your bets and understanding the math.</p>
             
-            
-            
-            <p>The free calculators help you understand the math. </p>
-          </div>
-          
-          {/* Why WalrusQuant Section */}
-          <div className="mt-16">
-            
-            
+            <p className="text-foreground/70">X: <a href="https://x.com/walrusquant" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@walrusquant</a></p>
           </div>
         </div>
       </section>
-    </div>;
+    </div>
+  );
 };
+
 export default About;
