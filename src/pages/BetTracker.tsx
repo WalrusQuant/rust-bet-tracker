@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateEV, calculateCLV, calculateProfit, formatAmericanOdds } from '@/lib/oddsUtils';
+import { calculateRecommendedStake } from '@/lib/bankrollUtils';
 import { z } from 'zod';
 
 interface Sportsbook {
@@ -869,6 +870,46 @@ const BetTracker = () => {
                   </div>
                   <div>
                     <Label htmlFor="stake">Stake ($)</Label>
+                    {bankrollSettings && currentBankroll > 0 && (
+                      <div className="mb-2 p-2 bg-muted rounded-md">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm">
+                            <span className="font-medium text-foreground">
+                              Recommended: ${calculateRecommendedStake(
+                                currentBankroll,
+                                bankrollSettings,
+                                formData.odds ? parseInt(formData.odds) : undefined,
+                                formData.fair_odds ? parseInt(formData.fair_odds) : undefined
+                              ).amount.toFixed(2)}
+                            </span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {calculateRecommendedStake(
+                                currentBankroll,
+                                bankrollSettings,
+                                formData.odds ? parseInt(formData.odds) : undefined,
+                                formData.fair_odds ? parseInt(formData.fair_odds) : undefined
+                              ).explanation}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const recommended = calculateRecommendedStake(
+                                currentBankroll,
+                                bankrollSettings,
+                                formData.odds ? parseInt(formData.odds) : undefined,
+                                formData.fair_odds ? parseInt(formData.fair_odds) : undefined
+                              );
+                              setFormData({ ...formData, stake: recommended.amount.toFixed(2) });
+                            }}
+                          >
+                            Use
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <Input
                       id="stake"
                       type="number"
