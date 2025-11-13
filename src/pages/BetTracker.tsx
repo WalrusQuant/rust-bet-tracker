@@ -182,6 +182,19 @@ const BetTracker = () => {
     }
   };
 
+  const fetchStrategies = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('strategies')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      setStrategies((data || []) as Strategy[]);
+    } catch (error) {
+      console.error('Failed to fetch strategies:', error);
+    }
+  };
+
   const downloadTemplate = () => {
     const headers = ['Date', 'Sportsbook', 'League', 'Bet Type', 'Betting Odds', 'Fair Odds', 'Closing Odds', 'Stake', 'Status', 'Note'];
     const exampleRow = ['2025-11-02', 'DraftKings', 'NBA', 'Spread', '-110', '-110', '-106', '20', 'won', 'Lakers -5.5'];
@@ -453,7 +466,7 @@ const BetTracker = () => {
     if (!user || !newStrategy.trim()) return;
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('strategies')
         .insert({ user_id: user.id, name: newStrategy.trim() })
         .select()
@@ -461,7 +474,7 @@ const BetTracker = () => {
       
       if (error) throw error;
       
-      setStrategies([...strategies, data]);
+      setStrategies([...strategies, data as Strategy]);
       setFormData({ ...formData, strategy_ids: [...formData.strategy_ids, data.id] });
       setNewStrategy('');
       setShowNewStrategy(false);
@@ -498,13 +511,13 @@ const BetTracker = () => {
         if (error) throw error;
 
         // Delete existing strategies and insert new ones
-        await supabase.from('bet_strategies').delete().eq('bet_id', editingBet.id);
+        await (supabase as any).from('bet_strategies').delete().eq('bet_id', editingBet.id);
         if (formData.strategy_ids.length > 0) {
           const strategyInserts = formData.strategy_ids.map(strategy_id => ({
             bet_id: editingBet.id,
             strategy_id,
           }));
-          await supabase.from('bet_strategies').insert(strategyInserts);
+          await (supabase as any).from('bet_strategies').insert(strategyInserts);
         }
 
         toast({ title: 'Success', description: 'Bet updated successfully' });
@@ -523,7 +536,7 @@ const BetTracker = () => {
             bet_id: newBet.id,
             strategy_id,
           }));
-          await supabase.from('bet_strategies').insert(strategyInserts);
+          await (supabase as any).from('bet_strategies').insert(strategyInserts);
         }
 
         toast({ title: 'Success', description: 'Bet added successfully' });

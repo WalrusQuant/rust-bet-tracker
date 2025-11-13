@@ -58,6 +58,7 @@ export default function Analytics() {
   const [selectedChart, setSelectedChart] = useState('pl-over-time');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [selectedStrategy, setSelectedStrategy] = useState<string>('all');
 
   useEffect(() => {
     if (!user) {
@@ -81,7 +82,7 @@ export default function Analytics() {
       supabase.from('sportsbooks').select('*').eq('user_id', user?.id),
       supabase.from('leagues').select('*').eq('user_id', user?.id),
       supabase.from('bet_types').select('*').eq('user_id', user?.id),
-      supabase.from('strategies').select('*').eq('user_id', user?.id),
+      (supabase as any).from('strategies').select('*').eq('user_id', user?.id),
     ]);
 
     if (betsRes.data) setBets(betsRes.data as any);
@@ -95,6 +96,13 @@ export default function Analytics() {
     const betDate = new Date(bet.bet_date);
     if (dateFrom && betDate < dateFrom) return false;
     if (dateTo && betDate > dateTo) return false;
+    
+    // Filter by strategy
+    if (selectedStrategy !== 'all') {
+      const betStrategies = (bet as any).bet_strategies?.map((bs: any) => bs.strategies.id) || [];
+      if (!betStrategies.includes(selectedStrategy)) return false;
+    }
+    
     return true;
   });
 
@@ -390,37 +398,58 @@ export default function Analytics() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[140px]">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateFrom ? format(dateFrom, 'MM/dd/yyyy') : 'From'}
+            <div className="flex flex-wrap gap-4">
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[140px]">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFrom ? format(dateFrom, 'MM/dd/yyyy') : 'From'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[140px]">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateTo ? format(dateTo, 'MM/dd/yyyy') : 'To'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
+                  </PopoverContent>
+                </Popover>
+                {(dateFrom || dateTo) && (
+                  <Button variant="ghost" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                    Clear
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[140px]">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateTo ? format(dateTo, 'MM/dd/yyyy') : 'To'}
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <Select value={selectedStrategy} onValueChange={setSelectedStrategy}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="All Strategies" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Strategies</SelectItem>
+                    {strategies.map((strategy) => (
+                      <SelectItem key={strategy.id} value={strategy.id}>
+                        {strategy.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedStrategy !== 'all' && (
+                  <Button variant="ghost" onClick={() => setSelectedStrategy('all')}>
+                    Clear
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
-                </PopoverContent>
-              </Popover>
-              {(dateFrom || dateTo) && (
-                <Button variant="ghost" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
-                  Clear
-                </Button>
-              )}
+                )}
+              </div>
             </div>
-          </div>
         </CardContent>
       </Card>
 

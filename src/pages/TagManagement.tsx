@@ -149,7 +149,7 @@ const TagManagement = () => {
 
   const fetchStrategies = async () => {
     try {
-      const { data: strategiesData, error: strategiesError } = await supabase
+      const { data: strategiesData, error: strategiesError } = await (supabase as any)
         .from('strategies')
         .select('*')
         .order('name');
@@ -157,8 +157,8 @@ const TagManagement = () => {
       if (strategiesError) throw strategiesError;
 
       const strategiesWithCounts = await Promise.all(
-        (strategiesData || []).map(async (strategy) => {
-          const { count } = await supabase
+        (strategiesData || []).map(async (strategy: any) => {
+          const { count } = await (supabase as any)
             .from('bet_strategies')
             .select('*', { count: 'exact', head: true })
             .eq('strategy_id', strategy.id);
@@ -166,7 +166,7 @@ const TagManagement = () => {
         })
       );
 
-      setStrategies(strategiesWithCounts);
+      setStrategies(strategiesWithCounts as Tag[]);
     } catch (error) {
       console.error('Failed to fetch strategies:', error);
     }
@@ -178,7 +178,7 @@ const TagManagement = () => {
     const tableName = type === 'sportsbook' ? 'sportsbooks' : type === 'league' ? 'leagues' : type === 'betType' ? 'bet_types' : 'strategies';
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from(tableName)
         .insert({ user_id: user.id, name: name.trim() });
 
@@ -217,7 +217,7 @@ const TagManagement = () => {
     const tableName = editingType === 'sportsbook' ? 'sportsbooks' : editingType === 'league' ? 'leagues' : editingType === 'betType' ? 'bet_types' : 'strategies';
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from(tableName)
         .update({ name: editingName.trim() })
         .eq('id', editingId);
@@ -248,7 +248,7 @@ const TagManagement = () => {
     const tableName = deleteDialog.type === 'sportsbook' ? 'sportsbooks' : deleteDialog.type === 'league' ? 'leagues' : deleteDialog.type === 'betType' ? 'bet_types' : 'strategies';
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from(tableName)
         .delete()
         .eq('id', deleteDialog.id);
