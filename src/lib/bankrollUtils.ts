@@ -2,7 +2,7 @@ import { americanToImpliedProbability, calculateEV } from './oddsUtils';
 
 interface BankrollSettings {
   starting_bankroll: number;
-  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly';
+  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount';
   unit_size_value: number;
   kelly_fraction: 'full' | 'half' | 'quarter';
 }
@@ -32,8 +32,7 @@ export function calculateRecommendedStake(
         explanation: `${unit_size_value}% of $${currentBankroll.toFixed(2)} bankroll`
       };
 
-    case 'kelly':
-    case 'fractional_kelly': {
+    case 'kelly': {
       // Kelly requires fair odds to calculate EV
       if (!betOdds || !fairOdds) {
         // Fallback to fixed percent if no fair odds provided

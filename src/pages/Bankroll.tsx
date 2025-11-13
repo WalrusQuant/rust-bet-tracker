@@ -23,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 interface BankrollSettings {
   starting_bankroll: number;
-  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly';
+  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount';
   unit_size_value: number;
   kelly_fraction: 'full' | 'half' | 'quarter';
 }
@@ -101,7 +101,7 @@ const Bankroll = () => {
       if (data) {
         const loadedSettings = {
           starting_bankroll: Number(data.starting_bankroll),
-          unit_sizing_method: data.unit_sizing_method as 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly',
+          unit_sizing_method: data.unit_sizing_method as 'fixed_percent' | 'kelly' | 'fixed_amount',
           unit_size_value: Number(data.unit_size_value),
           kelly_fraction: data.kelly_fraction as 'full' | 'half' | 'quarter',
         };
@@ -151,11 +151,27 @@ const Bankroll = () => {
     try {
       const { data, error } = await (supabase as any)
         .from('transactions')
-        .select('*, sportsbooks(name)')
+        .select('*')
         .order('transaction_date', { ascending: true });
 
       if (error) throw error;
-      setTransactions((data || []) as Transaction[]);
+      
+      // Manually fetch sportsbook names for display
+      const transactionsWithSportsbooks = await Promise.all(
+        (data || []).map(async (transaction: any) => {
+          if (transaction.sportsbook_id) {
+            const { data: sportsbookData } = await supabase
+              .from('sportsbooks')
+              .select('name')
+              .eq('id', transaction.sportsbook_id)
+              .single();
+            return { ...transaction, sportsbooks: sportsbookData };
+          }
+          return { ...transaction, sportsbooks: null };
+        })
+      );
+      
+      setTransactions(transactionsWithSportsbooks);
     } catch (error) {
       console.error('Error fetching transactions:', error);
     }
@@ -185,6 +201,8 @@ const Bankroll = () => {
           unit_sizing_method: tempSettings.unit_sizing_method,
           unit_size_value: tempSettings.unit_size_value,
           kelly_fraction: tempSettings.kelly_fraction,
+        }, {
+          onConflict: 'user_id'
         });
 
       if (error) throw error;
@@ -542,7 +560,6 @@ const Bankroll = () => {
                   <SelectItem value="fixed_amount">Fixed Amount ($)</SelectItem>
                   <SelectItem value="fixed_percent">Fixed Percentage (%)</SelectItem>
                   <SelectItem value="kelly">Kelly Criterion</SelectItem>
-                  <SelectItem value="fractional_kelly">Fractional Kelly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -558,7 +575,7 @@ const Bankroll = () => {
                 <Input type="number" step="0.1" value={isEditing ? tempSettings.unit_size_value : settings.unit_size_value} onChange={(e) => setTempSettings({ ...tempSettings, unit_size_value: parseFloat(e.target.value) || 0 })} disabled={!isEditing} />
               </div>
             )}
-            {((isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'kelly' || (isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'fractional_kelly') && (
+            {(isEditing ? tempSettings.unit_sizing_method : settings.unit_sizing_method) === 'kelly' && (
               <div className="space-y-2">
                 <Label>Kelly Fraction</Label>
                 <Select value={isEditing ? tempSettings.kelly_fraction : settings.kelly_fraction} onValueChange={(value: any) => setTempSettings({ ...tempSettings, kelly_fraction: value })} disabled={!isEditing}>

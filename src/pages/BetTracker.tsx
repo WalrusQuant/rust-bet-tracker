@@ -62,7 +62,7 @@ interface Bet {
 
 interface BankrollSettings {
   starting_bankroll: number;
-  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly';
+  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount';
   unit_size_value: number;
   kelly_fraction: 'full' | 'half' | 'quarter';
 }
