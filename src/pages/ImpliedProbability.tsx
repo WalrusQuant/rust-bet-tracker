@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,55 @@ const ImpliedProbability = () => {
             <Button onClick={handleClear} variant="outline" className="w-full">
               Clear
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Educational Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">What Implied Probability Tells You</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              Implied probability converts betting odds into a percentage chance of winning. This is crucial for finding value.
+            </p>
+            
+            <div>
+              <p className="font-semibold text-foreground mb-2">How it works:</p>
+              <p>
+                If a team is -200 (implied probability 66.7%), the bookmaker is saying this team has a 66.7% chance to win. But is that accurate?
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Finding value:</p>
+              <p>
+                If you believe the true probability is 75%, then -200 offers +EV (Expected Value). Your edge is the difference between the true probability and the implied probability.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">The vig factor:</p>
+              <p>
+                When you add both sides of a market together, implied probabilities will sum to more than 100%. That extra percentage is the bookmaker's vig (juice). For example, -110 on both sides = 52.4% + 52.4% = 104.8% total. The 4.8% is the vig.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Think in probabilities:</p>
+              <p>
+                Sharp bettors think in probabilities, not odds. Convert everything to percentages to see where the real value is.
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm">
+                Track your edge automatically with{" "}
+                <Link to="/bet-tracker" className="text-primary hover:underline font-semibold">
+                  WalrusQuant Bet Tracker
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

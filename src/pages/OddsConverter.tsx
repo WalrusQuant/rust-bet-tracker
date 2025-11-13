@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -134,6 +135,55 @@ const OddsConverter = () => {
             <Button onClick={handleClear} variant="outline" className="w-full">
               Clear All
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Educational Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-2xl">Understanding Odds Formats</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              Different sportsbooks display odds in different formats, but they all represent the same thing - your potential payout.
+            </p>
+            
+            <div>
+              <p className="font-semibold text-foreground mb-2">American Odds:</p>
+              <p>
+                Most common in the US. Negative odds (-110) show how much you need to bet to win $100. Positive odds (+150) show how much you win on a $100 bet.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Decimal Odds:</p>
+              <p>
+                Popular in Europe and Australia. Simply multiply your stake by the decimal to see your total return (including your original stake). For example, 2.50 odds means a $100 bet returns $250 total ($150 profit + $100 stake).
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Fractional Odds:</p>
+              <p>
+                Traditional UK format. Shows profit relative to stake. 3/2 odds means you profit $3 for every $2 wagered.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-foreground mb-2">Why convert odds?</p>
+              <p>
+                Line shopping across books in different countries, or calculating parlays, or simply understanding what odds mean in a format you're more comfortable with.
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm">
+                Track your bets automatically with{" "}
+                <Link to="/bet-tracker" className="text-primary hover:underline font-semibold">
+                  WalrusQuant Bet Tracker
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
