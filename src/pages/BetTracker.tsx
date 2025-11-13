@@ -59,6 +59,13 @@ interface Bet {
   bet_strategies?: Array<{ strategies: { id: string; name: string } }>;
 }
 
+interface BankrollSettings {
+  starting_bankroll: number;
+  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount' | 'fractional_kelly';
+  unit_size_value: number;
+  kelly_fraction: 'full' | 'half' | 'quarter';
+}
+
 const BetTracker = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -69,6 +76,8 @@ const BetTracker = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [betTypes, setBetTypes] = useState<BetType[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [bankrollSettings, setBankrollSettings] = useState<BankrollSettings | null>(null);
+  const [currentBankroll, setCurrentBankroll] = useState<number>(0);
   
   const [loading, setLoading] = useState(true);
   const [filterSportsbook, setFilterSportsbook] = useState<string>('all');
