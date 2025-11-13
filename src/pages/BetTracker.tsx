@@ -79,6 +79,7 @@ const BetTracker = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [bankrollSettings, setBankrollSettings] = useState<BankrollSettings | null>(null);
   const [currentBankroll, setCurrentBankroll] = useState<number>(0);
+  const [transactions, setTransactions] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [filterSportsbook, setFilterSportsbook] = useState<string>('all');
@@ -126,7 +127,14 @@ const BetTracker = () => {
   }, [user, navigate]);
 
   const fetchAllData = async () => {
-    await Promise.all([fetchBets(), fetchSportsbooks(), fetchLeagues(), fetchBetTypes()]);
+    await Promise.all([
+      fetchBets(), 
+      fetchSportsbooks(), 
+      fetchLeagues(), 
+      fetchBetTypes(), 
+      fetchBankrollSettings(),
+      fetchTransactions()
+    ]);
     setLoading(false);
   };
 
@@ -204,6 +212,75 @@ const BetTracker = () => {
       console.error('Failed to fetch strategies:', error);
     }
   };
+
+  const fetchBankrollSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bankroll_settings')
+        .select('*')
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      if (data) {
+        setBankrollSettings({
+          starting_bankroll: Number(data.starting_bankroll),
+          unit_sizing_method: data.unit_sizing_method as any,
+          unit_size_value: Number(data.unit_size_value),
+          kelly_fraction: data.kelly_fraction as any,
+        });
+      } else {
+        // Set default settings if none exist
+        setBankrollSettings({
+          starting_bankroll: 1000,
+          unit_sizing_method: 'fixed_percent',
+          unit_size_value: 2,
+          kelly_fraction: 'half',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch bankroll settings:', error);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('transactions')
+        .select('*')
+        .order('transaction_date', { ascending: true });
+      
+      if (error) throw error;
+      setTransactions(data || []);
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+    }
+  };
+
+  // Calculate current bankroll whenever bets, transactions, or settings change
+  useEffect(() => {
+    if (bankrollSettings && transactions) {
+      const totalDeposits = transactions
+        .filter(t => t.transaction_type === 'deposit')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      const totalWithdrawals = transactions
+        .filter(t => t.transaction_type === 'withdrawal')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      const settledBets = bets.filter(b => b.outcome === 'won' || b.outcome === 'lost');
+      const netBettingProfit = settledBets.reduce((sum, bet) => {
+        if (bet.outcome === 'won') {
+          return sum + calculateProfit(bet.odds, Number(bet.stake));
+        } else {
+          return sum - Number(bet.stake);
+        }
+      }, 0);
+      
+      const calculated = bankrollSettings.starting_bankroll + totalDeposits - totalWithdrawals + netBettingProfit;
+      setCurrentBankroll(calculated);
+    }
+  }, [bets, transactions, bankrollSettings]);
 
   const downloadTemplate = () => {
     const headers = ['Date', 'Sportsbook', 'League', 'Bet Type', 'Betting Odds', 'Fair Odds', 'Closing Odds', 'Stake', 'Status', 'Note'];
