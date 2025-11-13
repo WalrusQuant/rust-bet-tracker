@@ -55,7 +55,7 @@ const Index = () => {
             Track Every Bet. Analyze Your Edge. Build Your Bankroll.
           </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-12">
-            Complete bet tracking system with professional calculators included
+            Complete bet tracking system with professional calculators all for FREE      
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
