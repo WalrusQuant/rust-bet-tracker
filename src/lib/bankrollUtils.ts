@@ -45,10 +45,9 @@ export function calculateRecommendedStake(
 
       // Calculate Kelly percentage
       const fairProbability = americanToImpliedProbability(fairOdds);
-      const betProbability = americanToImpliedProbability(betOdds);
       
       // Kelly formula: f = (bp - q) / b
-      // where b = decimal odds - 1, p = win probability, q = lose probability
+      // where b = net odds (profit per unit), p = win probability, q = lose probability
       const b = betOdds > 0 ? betOdds / 100 : 100 / Math.abs(betOdds);
       const p = fairProbability;
       const q = 1 - p;
@@ -63,14 +62,15 @@ export function calculateRecommendedStake(
       kellyPercent = Math.min(Math.max(kellyPercent, 0), 10);
       
       const kellyAmount = (currentBankroll * kellyPercent) / 100;
-      const ev = calculateEV(betOdds, fairOdds, kellyAmount);
-      const evPercent = (ev / kellyAmount) * 100;
+      
+      // Calculate EV for display (using $1 stake for percentage)
+      const evPercent = calculateEV(betOdds, fairOdds, 1);
       
       const fractionName = kelly_fraction === 'full' ? 'Full' : kelly_fraction === 'half' ? 'Half' : 'Quarter';
       
       return {
         amount: kellyAmount,
-        explanation: `${fractionName} Kelly based on ${evPercent >= 0 ? '+' : ''}${evPercent.toFixed(1)}% EV`
+        explanation: `${fractionName} Kelly (${kellyPercent.toFixed(2)}% of bankroll) - ${evPercent >= 0 ? '+' : ''}${evPercent.toFixed(1)}% EV`
       };
     }
 
