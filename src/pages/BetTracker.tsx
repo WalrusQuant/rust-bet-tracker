@@ -131,7 +131,8 @@ const BetTracker = () => {
       fetchBets(), 
       fetchSportsbooks(), 
       fetchLeagues(), 
-      fetchBetTypes(), 
+      fetchBetTypes(),
+      fetchStrategies(),
       fetchBankrollSettings(),
       fetchTransactions()
     ]);
