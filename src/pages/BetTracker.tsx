@@ -1,313 +1,228 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, Download, Plus, Eye } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { calculateEV, calculateCLV, calculateProfit, formatAmericanOdds } from '@/lib/oddsUtils';
-import { calculateRecommendedStake } from '@/lib/bankrollUtils';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useBets, useCreateBet, useUpdateBet, useDeleteBet } from '@/hooks/useBets';
+import { useSportsbooks, useCreateSportsbook } from '@/hooks/useSportsbooks';
+import { useLeagues, useCreateLeague } from '@/hooks/useLeagues';
+import { useBetTypes, useCreateBetType } from '@/hooks/useBetTypes';
+import { useStrategies, useCreateStrategy } from '@/hooks/useStrategies';
+import { useBankrollSettings, useTransactions } from '@/hooks/useBankroll';
+import {
+  BetStats,
+  BetTable,
+  BetFilters,
+  BetFormDialog,
+  BetDetailsDialog,
+  DeleteConfirmDialog,
+} from '@/components/BetTracker';
+import { Bet, BetFormData, FilterState, BetStats as BetStatsType } from '@/types';
+import { calculateEV, calculateCLV, calculateProfit } from '@/lib/oddsUtils';
 import { z } from 'zod';
 
-interface Sportsbook {
-  id: string;
-  name: string;
-}
-
-interface League {
-  id: string;
-  name: string;
-}
-
-interface BetType {
-  id: string;
-  name: string;
-}
-
-interface Strategy {
-  id: string;
-  name: string;
-}
-
-interface Bet {
-  id: string;
-  bet_date: string;
-  sportsbook_id: string | null;
-  league_id: string | null;
-  bet_type_id: string | null;
-  odds: number;
-  fair_odds: number | null;
-  closing_odds: number | null;
-  stake: number;
-  outcome: 'pending' | 'won' | 'lost' | 'push';
-  notes: string | null;
-  sportsbooks?: { name: string } | null;
-  leagues?: { name: string } | null;
-  bet_types?: { name: string } | null;
-  bet_strategies?: Array<{ strategies: { id: string; name: string } }>;
-}
-
-interface BankrollSettings {
-  starting_bankroll: number;
-  unit_sizing_method: 'fixed_percent' | 'kelly' | 'fixed_amount';
-  unit_size_value: number;
-  kelly_fraction: 'full' | 'half' | 'quarter';
-}
+const betImportSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  sportsbook: z.string().trim().min(1, 'Sportsbook is required').max(100, 'Sportsbook name too long'),
+  league: z.string().trim().min(1, 'League is required').max(100, 'League name too long'),
+  betType: z.string().trim().min(1, 'Bet type is required').max(100, 'Bet type name too long'),
+  odds: z.number().int('Odds must be a whole number').min(-10000, 'Odds too low').max(10000, 'Odds too high'),
+  fairOdds: z.number().int('Fair odds must be a whole number').min(-10000, 'Fair odds too low').max(10000, 'Fair odds too high').nullable(),
+  closingOdds: z.number().int('Closing odds must be a whole number').min(-10000, 'Closing odds too low').max(10000, 'Closing odds too high').nullable(),
+  stake: z.number().positive('Stake must be positive').max(1000000, 'Stake too large'),
+  outcome: z.enum(['won', 'lost', 'push', 'pending'], { errorMap: () => ({ message: 'Outcome must be won, lost, push, or pending' }) }),
+  notes: z.string().max(1000, 'Notes too long').optional(),
+});
 
 const BetTracker = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, isLoading: authLoading } = useRequireAuth();
   const { toast } = useToast();
-  
-  const [bets, setBets] = useState<Bet[]>([]);
-  const [sportsbooks, setSportsbooks] = useState<Sportsbook[]>([]);
-  const [leagues, setLeagues] = useState<League[]>([]);
-  const [betTypes, setBetTypes] = useState<BetType[]>([]);
-  const [strategies, setStrategies] = useState<Strategy[]>([]);
-  const [bankrollSettings, setBankrollSettings] = useState<BankrollSettings | null>(null);
-  const [currentBankroll, setCurrentBankroll] = useState<number>(0);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  
-  const [loading, setLoading] = useState(true);
-  const [filterSportsbook, setFilterSportsbook] = useState<string>('all');
-  const [filterLeague, setFilterLeague] = useState<string>('all');
-  const [filterBetType, setFilterBetType] = useState<string>('all');
-  const [filterOutcome, setFilterOutcome] = useState<string>('all');
+
+  // Data fetching hooks
+  const { data: bets = [], isLoading: betsLoading, refetch: refetchBets } = useBets();
+  const { data: sportsbooks = [] } = useSportsbooks();
+  const { data: leagues = [] } = useLeagues();
+  const { data: betTypes = [] } = useBetTypes();
+  const { data: strategies = [] } = useStrategies();
+  const { data: bankrollSettings } = useBankrollSettings();
+  const { data: transactions = [] } = useTransactions();
+
+  // Mutation hooks
+  const createBet = useCreateBet();
+  const updateBet = useUpdateBet();
+  const deleteBet = useDeleteBet();
+  const createSportsbook = useCreateSportsbook();
+  const createLeague = useCreateLeague();
+  const createBetType = useCreateBetType();
+  const createStrategy = useCreateStrategy();
+
+  // UI State
+  const [filters, setFilters] = useState<FilterState>({
+    sportsbook: 'all',
+    league: 'all',
+    betType: 'all',
+    outcome: 'all',
+  });
   const [editingBet, setEditingBet] = useState<Bet | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [viewingBet, setViewingBet] = useState<Bet | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-
-  // Form state
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [formData, setFormData] = useState({
-    sportsbook_id: '',
-    league_id: '',
-    bet_type_id: '',
-    odds: '',
-    fair_odds: '',
-    closing_odds: '',
-    stake: '',
-    outcome: 'pending' as 'pending' | 'won' | 'lost' | 'push',
-    notes: '',
-    strategy_id: 'none',
-  });
-
-  // New tag creation state
-  const [newSportsbook, setNewSportsbook] = useState('');
-  const [newLeague, setNewLeague] = useState('');
-  const [newBetType, setNewBetType] = useState('');
-  const [newStrategy, setNewStrategy] = useState('');
-  const [showNewSportsbook, setShowNewSportsbook] = useState(false);
-  const [showNewLeague, setShowNewLeague] = useState(false);
-  const [showNewBetType, setShowNewBetType] = useState(false);
-  const [showNewStrategy, setShowNewStrategy] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-    fetchAllData();
-  }, [user, navigate]);
+  // Calculate current bankroll with memoization
+  const currentBankroll = useMemo(() => {
+    if (!bankrollSettings) return 0;
 
-  const fetchAllData = async () => {
-    await Promise.all([
-      fetchBets(), 
-      fetchSportsbooks(), 
-      fetchLeagues(), 
-      fetchBetTypes(),
-      fetchStrategies(),
-      fetchBankrollSettings(),
-      fetchTransactions()
-    ]);
-    setLoading(false);
-  };
+    const totalDeposits = transactions
+      .filter(t => t.transaction_type === 'deposit')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  const fetchBets = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bets')
-        .select(`
-          *,
-          sportsbooks(name),
-          leagues(name),
-          bet_types(name)
-        `)
-        .order('bet_date', { ascending: false });
+    const totalWithdrawals = transactions
+      .filter(t => t.transaction_type === 'withdrawal')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
-      if (error) throw error;
-      
-      // Fetch strategies separately for each bet
-      const betsWithStrategies = await Promise.all(
-        (data || []).map(async (bet: any) => {
-          const { data: stratData } = await (supabase as any)
-            .from('bet_strategies')
-            .select('strategies(id, name)')
-            .eq('bet_id', bet.id);
-          return { ...bet, bet_strategies: stratData || [] };
-        })
-      );
-      
-      setBets(betsWithStrategies as Bet[]);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch bets',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const fetchSportsbooks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sportsbooks')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      setSportsbooks(data || []);
-    } catch (error) {
-      console.error('Failed to fetch sportsbooks:', error);
-    }
-  };
-
-  const fetchLeagues = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('leagues')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      setLeagues(data || []);
-    } catch (error) {
-      console.error('Failed to fetch leagues:', error);
-    }
-  };
-
-  const fetchBetTypes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bet_types')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      setBetTypes(data || []);
-    } catch (error) {
-      console.error('Failed to fetch bet types:', error);
-    }
-  };
-
-  const fetchStrategies = async () => {
-    try {
-      const { data, error } = await (supabase as any)
-        .from('strategies')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      setStrategies((data || []) as Strategy[]);
-    } catch (error) {
-      console.error('Failed to fetch strategies:', error);
-    }
-  };
-
-  const fetchBankrollSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bankroll_settings')
-        .select('*')
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      if (data) {
-        setBankrollSettings({
-          starting_bankroll: Number(data.starting_bankroll),
-          unit_sizing_method: data.unit_sizing_method as any,
-          unit_size_value: Number(data.unit_size_value),
-          kelly_fraction: data.kelly_fraction as any,
-        });
+    const settledBets = bets.filter(b => b.outcome === 'won' || b.outcome === 'lost');
+    const netBettingProfit = settledBets.reduce((sum, bet) => {
+      if (bet.outcome === 'won') {
+        return sum + calculateProfit(bet.odds, Number(bet.stake));
       } else {
-        // Set default settings if none exist
-        setBankrollSettings({
-          starting_bankroll: 1000,
-          unit_sizing_method: 'fixed_percent',
-          unit_size_value: 2,
-          kelly_fraction: 'half',
-        });
+        return sum - Number(bet.stake);
       }
-    } catch (error) {
-      console.error('Failed to fetch bankroll settings:', error);
-    }
-  };
+    }, 0);
 
-  const fetchTransactions = async () => {
-    try {
-      const { data, error } = await (supabase as any)
-        .from('transactions')
-        .select('*')
-        .order('transaction_date', { ascending: true });
-      
-      if (error) throw error;
-      setTransactions(data || []);
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-    }
-  };
-
-  // Calculate current bankroll whenever bets, transactions, or settings change
-  useEffect(() => {
-    if (bankrollSettings && transactions) {
-      const totalDeposits = transactions
-        .filter(t => t.transaction_type === 'deposit')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      
-      const totalWithdrawals = transactions
-        .filter(t => t.transaction_type === 'withdrawal')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      
-      const settledBets = bets.filter(b => b.outcome === 'won' || b.outcome === 'lost');
-      const netBettingProfit = settledBets.reduce((sum, bet) => {
-        if (bet.outcome === 'won') {
-          return sum + calculateProfit(bet.odds, Number(bet.stake));
-        } else {
-          return sum - Number(bet.stake);
-        }
-      }, 0);
-      
-      const calculated = bankrollSettings.starting_bankroll + totalDeposits - totalWithdrawals + netBettingProfit;
-      setCurrentBankroll(calculated);
-    }
+    return bankrollSettings.starting_bankroll + totalDeposits - totalWithdrawals + netBettingProfit;
   }, [bets, transactions, bankrollSettings]);
 
-  const downloadTemplate = () => {
+  // Filter bets with memoization
+  const filteredBets = useMemo(() => {
+    return bets.filter((bet) => {
+      const sportsbookMatch = filters.sportsbook === 'all' || bet.sportsbook_id === filters.sportsbook;
+      const leagueMatch = filters.league === 'all' || bet.league_id === filters.league;
+      const betTypeMatch = filters.betType === 'all' || bet.bet_type_id === filters.betType;
+      const outcomeMatch = filters.outcome === 'all' || bet.outcome === filters.outcome;
+      return sportsbookMatch && leagueMatch && betTypeMatch && outcomeMatch;
+    });
+  }, [bets, filters]);
+
+  // Calculate stats with memoization
+  const stats = useMemo((): BetStatsType => {
+    const totalBets = filteredBets.length;
+    const wonBets = filteredBets.filter((b) => b.outcome === 'won').length;
+    const lostBets = filteredBets.filter((b) => b.outcome === 'lost').length;
+    const winRate = wonBets + lostBets > 0 ? ((wonBets / (wonBets + lostBets)) * 100).toFixed(1) : '0.0';
+
+    const totalStaked = filteredBets.reduce((sum, bet) => sum + bet.stake, 0);
+    const totalProfit = filteredBets.reduce((sum, bet) => {
+      if (bet.outcome === 'won') {
+        return sum + calculateProfit(bet.odds, bet.stake);
+      } else if (bet.outcome === 'lost') {
+        return sum - bet.stake;
+      }
+      return sum;
+    }, 0);
+
+    const roi = totalStaked > 0 ? ((totalProfit / totalStaked) * 100).toFixed(1) : '0.0';
+
+    const betsWithEV = filteredBets.filter(b => b.fair_odds !== null);
+    const avgEV = betsWithEV.length > 0
+      ? (betsWithEV.reduce((sum, bet) => {
+          return sum + calculateEV(bet.odds, bet.fair_odds!, bet.stake);
+        }, 0) / betsWithEV.length).toFixed(2)
+      : '0.00';
+
+    const betsWithCLV = filteredBets.filter(b => b.closing_odds !== null);
+    const avgCLV = betsWithCLV.length > 0
+      ? (betsWithCLV.reduce((sum, bet) => {
+          return sum + calculateCLV(bet.odds, bet.closing_odds!);
+        }, 0) / betsWithCLV.length).toFixed(2)
+      : '0.00';
+
+    return { totalBets, winRate, totalProfit, roi, avgEV, avgCLV };
+  }, [filteredBets]);
+
+  // Handlers
+  const handleFilterChange = useCallback((key: keyof FilterState, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleSubmitBet = useCallback(async (formData: BetFormData, selectedDate: Date) => {
+    try {
+      if (editingBet) {
+        await updateBet.mutateAsync({ id: editingBet.id, formData, selectedDate });
+        toast({ title: 'Success', description: 'Bet updated successfully' });
+      } else {
+        await createBet.mutateAsync({ formData, selectedDate });
+        toast({ title: 'Success', description: 'Bet added successfully' });
+      }
+      setEditingBet(null);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to save bet', variant: 'destructive' });
+    }
+  }, [editingBet, createBet, updateBet, toast]);
+
+  const handleEdit = useCallback((bet: Bet) => {
+    setEditingBet(bet);
+    setIsFormDialogOpen(true);
+  }, []);
+
+  const handleDelete = useCallback((id: string) => {
+    setDeleteConfirmId(id);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deleteBet.mutateAsync(deleteConfirmId);
+      toast({ title: 'Success', description: 'Bet deleted successfully' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete bet', variant: 'destructive' });
+    }
+    setDeleteConfirmId(null);
+  }, [deleteConfirmId, deleteBet, toast]);
+
+  const handleView = useCallback((bet: Bet) => {
+    setViewingBet(bet);
+    setIsDetailsDialogOpen(true);
+  }, []);
+
+  const handleCreateSportsbook = useCallback(async (name: string) => {
+    const result = await createSportsbook.mutateAsync(name);
+    toast({ title: 'Success', description: 'Sportsbook added' });
+    return result;
+  }, [createSportsbook, toast]);
+
+  const handleCreateLeague = useCallback(async (name: string) => {
+    const result = await createLeague.mutateAsync(name);
+    toast({ title: 'Success', description: 'League added' });
+    return result;
+  }, [createLeague, toast]);
+
+  const handleCreateBetType = useCallback(async (name: string) => {
+    const result = await createBetType.mutateAsync(name);
+    toast({ title: 'Success', description: 'Bet type added' });
+    return result;
+  }, [createBetType, toast]);
+
+  const handleCreateStrategy = useCallback(async (name: string) => {
+    const result = await createStrategy.mutateAsync(name);
+    toast({ title: 'Success', description: 'Strategy added' });
+    return result;
+  }, [createStrategy, toast]);
+
+  const downloadTemplate = useCallback(() => {
     const headers = ['Date', 'Sportsbook', 'League', 'Bet Type', 'Betting Odds', 'Fair Odds', 'Closing Odds', 'Stake', 'Status', 'Note'];
     const exampleRow = ['2025-11-02', 'DraftKings', 'NBA', 'Spread', '-110', '-110', '-106', '20', 'won', 'Lakers -5.5'];
-    
+
     const csvContent = [
       headers.join(','),
       exampleRow.join(','),
-      // Add a few empty rows for user to fill
       ',,,,,,,,,',
       ',,,,,,,,,',
       ',,,,,,,,,',
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -315,22 +230,9 @@ const BetTracker = () => {
     a.download = 'bet_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, []);
 
-  const betImportSchema = z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-    sportsbook: z.string().trim().min(1, 'Sportsbook is required').max(100, 'Sportsbook name too long'),
-    league: z.string().trim().min(1, 'League is required').max(100, 'League name too long'),
-    betType: z.string().trim().min(1, 'Bet type is required').max(100, 'Bet type name too long'),
-    odds: z.number().int('Odds must be a whole number').min(-10000, 'Odds too low').max(10000, 'Odds too high'),
-    fairOdds: z.number().int('Fair odds must be a whole number').min(-10000, 'Fair odds too low').max(10000, 'Fair odds too high').nullable(),
-    closingOdds: z.number().int('Closing odds must be a whole number').min(-10000, 'Closing odds too low').max(10000, 'Closing odds too high').nullable(),
-    stake: z.number().positive('Stake must be positive').max(1000000, 'Stake too large'),
-    outcome: z.enum(['won', 'lost', 'push', 'pending'], { errorMap: () => ({ message: 'Outcome must be won, lost, push, or pending' }) }),
-    notes: z.string().max(1000, 'Notes too long').optional(),
-  });
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
@@ -338,10 +240,8 @@ const BetTracker = () => {
     try {
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());
-      
-      // Skip header row
       const dataLines = lines.slice(1);
-      
+
       const betsToImport: Array<{
         date: string;
         sportsbook: string;
@@ -360,7 +260,7 @@ const BetTracker = () => {
       for (let i = 0; i < dataLines.length; i++) {
         const line = dataLines[i];
         const columns = line.split(',').map(col => col.trim());
-        if (columns.length < 9 || !columns[0]) continue; // Skip empty rows
+        if (columns.length < 9 || !columns[0]) continue;
 
         const rowData = {
           date: columns[0],
@@ -375,7 +275,6 @@ const BetTracker = () => {
           notes: columns[9] || '',
         };
 
-        // Validate row data
         const result = betImportSchema.safeParse(rowData);
         if (!result.success) {
           validationErrors.push(`Row ${i + 2}: ${result.error.errors.map(e => e.message).join(', ')}`);
@@ -399,12 +298,10 @@ const BetTracker = () => {
         throw new Error('No valid bets found in file');
       }
 
-      // Get or create sportsbooks, leagues, and bet types
       const sportsbookMap = new Map<string, string>();
       const leagueMap = new Map<string, string>();
       const betTypeMap = new Map<string, string>();
 
-      // Process unique sportsbooks
       const uniqueSportsbooks = [...new Set(betsToImport.map(b => b.sportsbook))];
       for (const name of uniqueSportsbooks) {
         const existing = sportsbooks.find(s => s.name === name);
@@ -421,7 +318,6 @@ const BetTracker = () => {
         }
       }
 
-      // Process unique leagues
       const uniqueLeagues = [...new Set(betsToImport.map(b => b.league))];
       for (const name of uniqueLeagues) {
         const existing = leagues.find(l => l.name === name);
@@ -438,7 +334,6 @@ const BetTracker = () => {
         }
       }
 
-      // Process unique bet types
       const uniqueBetTypes = [...new Set(betsToImport.map(b => b.betType))];
       for (const name of uniqueBetTypes) {
         const existing = betTypes.find(bt => bt.name === name);
@@ -455,7 +350,6 @@ const BetTracker = () => {
         }
       }
 
-      // Insert all bets
       const betsToInsert = betsToImport.map(bet => ({
         user_id: user.id,
         bet_date: bet.date,
@@ -478,9 +372,8 @@ const BetTracker = () => {
         description: `Imported ${betsToImport.length} bets successfully`,
       });
 
-      await fetchAllData();
-      
-      // Reset file input
+      refetchBets();
+
       if (event.target) {
         event.target.value = '';
       }
@@ -494,266 +387,9 @@ const BetTracker = () => {
     } finally {
       setIsImporting(false);
     }
-  };
+  }, [user, sportsbooks, leagues, betTypes, toast, refetchBets]);
 
-  const createSportsbook = async () => {
-    if (!user || !newSportsbook.trim()) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('sportsbooks')
-        .insert({ user_id: user.id, name: newSportsbook.trim() })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setSportsbooks([...sportsbooks, data]);
-      setFormData({ ...formData, sportsbook_id: data.id });
-      setNewSportsbook('');
-      setShowNewSportsbook(false);
-      toast({ title: 'Success', description: 'Sportsbook added' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to add sportsbook', variant: 'destructive' });
-    }
-  };
-
-  const createLeague = async () => {
-    if (!user || !newLeague.trim()) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('leagues')
-        .insert({ user_id: user.id, name: newLeague.trim() })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setLeagues([...leagues, data]);
-      setFormData({ ...formData, league_id: data.id });
-      setNewLeague('');
-      setShowNewLeague(false);
-      toast({ title: 'Success', description: 'League added' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to add league', variant: 'destructive' });
-    }
-  };
-
-  const createBetType = async () => {
-    if (!user || !newBetType.trim()) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('bet_types')
-        .insert({ user_id: user.id, name: newBetType.trim() })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setBetTypes([...betTypes, data]);
-      setFormData({ ...formData, bet_type_id: data.id });
-      setNewBetType('');
-      setShowNewBetType(false);
-      toast({ title: 'Success', description: 'Bet type added' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to add bet type', variant: 'destructive' });
-    }
-  };
-
-  const createStrategy = async () => {
-    if (!user || !newStrategy.trim()) return;
-    
-    try {
-      const { data, error } = await (supabase as any)
-        .from('strategies')
-        .insert({ user_id: user.id, name: newStrategy.trim() })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      setStrategies([...strategies, data as Strategy]);
-      setFormData({ ...formData, strategy_id: data.id });
-      setNewStrategy('');
-      setShowNewStrategy(false);
-      toast({ title: 'Success', description: 'Strategy added' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to add strategy', variant: 'destructive' });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    try {
-      const betData = {
-        bet_date: format(selectedDate, 'yyyy-MM-dd'),
-        sportsbook_id: formData.sportsbook_id || null,
-        league_id: formData.league_id || null,
-        bet_type_id: formData.bet_type_id || null,
-        odds: parseInt(formData.odds),
-        fair_odds: formData.fair_odds ? parseInt(formData.fair_odds) : null,
-        closing_odds: formData.closing_odds ? parseInt(formData.closing_odds) : null,
-        stake: parseFloat(formData.stake),
-        outcome: formData.outcome,
-        notes: formData.notes || null,
-      };
-
-      if (editingBet) {
-        const { error } = await supabase
-          .from('bets')
-          .update(betData)
-          .eq('id', editingBet.id);
-
-        if (error) throw error;
-
-        // Delete existing strategies and insert new one
-        await (supabase as any).from('bet_strategies').delete().eq('bet_id', editingBet.id);
-        if (formData.strategy_id && formData.strategy_id !== 'none') {
-          await (supabase as any).from('bet_strategies').insert({
-            bet_id: editingBet.id,
-            strategy_id: formData.strategy_id,
-          });
-        }
-
-        toast({ title: 'Success', description: 'Bet updated successfully' });
-      } else {
-        const { data: newBet, error } = await supabase
-          .from('bets')
-          .insert({ ...betData, user_id: user.id })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Insert strategy for new bet
-        if (formData.strategy_id && formData.strategy_id !== 'none' && newBet) {
-          await (supabase as any).from('bet_strategies').insert({
-            bet_id: newBet.id,
-            strategy_id: formData.strategy_id,
-          });
-        }
-
-        toast({ title: 'Success', description: 'Bet added successfully' });
-      }
-
-      resetForm();
-      fetchBets();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save bet',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      sportsbook_id: '',
-      league_id: '',
-      bet_type_id: '',
-      odds: '',
-      fair_odds: '',
-      closing_odds: '',
-      stake: '',
-      outcome: 'pending',
-      notes: '',
-      strategy_id: 'none',
-    });
-    setSelectedDate(new Date());
-    setEditingBet(null);
-    setIsDialogOpen(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase.from('bets').delete().eq('id', id);
-      if (error) throw error;
-      toast({ title: 'Success', description: 'Bet deleted successfully' });
-      fetchBets();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete bet',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleEdit = (bet: Bet) => {
-    setEditingBet(bet);
-    const strategyId = bet.bet_strategies?.[0]?.strategies.id || 'none';
-    setSelectedDate(new Date(bet.bet_date));
-    setFormData({
-      sportsbook_id: bet.sportsbook_id || '',
-      league_id: bet.league_id || '',
-      bet_type_id: bet.bet_type_id || '',
-      odds: bet.odds.toString(),
-      fair_odds: bet.fair_odds?.toString() || '',
-      closing_odds: bet.closing_odds?.toString() || '',
-      stake: bet.stake.toString(),
-      outcome: bet.outcome,
-      notes: bet.notes || '',
-      strategy_id: strategyId,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleViewDetails = (bet: Bet) => {
-    setViewingBet(bet);
-    setIsDetailsDialogOpen(true);
-  };
-
-  const calculateStats = () => {
-    const filteredBets = bets.filter((bet) => {
-      const sportsbookMatch = filterSportsbook === 'all' || bet.sportsbook_id === filterSportsbook;
-      const leagueMatch = filterLeague === 'all' || bet.league_id === filterLeague;
-      const betTypeMatch = filterBetType === 'all' || bet.bet_type_id === filterBetType;
-      const outcomeMatch = filterOutcome === 'all' || bet.outcome === filterOutcome;
-      return sportsbookMatch && leagueMatch && betTypeMatch && outcomeMatch;
-    });
-
-    const totalBets = filteredBets.length;
-    const wonBets = filteredBets.filter((b) => b.outcome === 'won').length;
-    const lostBets = filteredBets.filter((b) => b.outcome === 'lost').length;
-    const winRate = wonBets + lostBets > 0 ? ((wonBets / (wonBets + lostBets)) * 100).toFixed(1) : '0.0';
-
-    const totalStaked = filteredBets.reduce((sum, bet) => sum + bet.stake, 0);
-    const totalProfit = filteredBets.reduce((sum, bet) => {
-      if (bet.outcome === 'won') {
-        return sum + calculateProfit(bet.odds, bet.stake);
-      } else if (bet.outcome === 'lost') {
-        return sum - bet.stake;
-      }
-      return sum;
-    }, 0);
-
-    const roi = totalStaked > 0 ? ((totalProfit / totalStaked) * 100).toFixed(1) : '0.0';
-
-    // Calculate average EV for bets with fair odds
-    const betsWithEV = filteredBets.filter(b => b.fair_odds !== null);
-    const avgEV = betsWithEV.length > 0
-      ? (betsWithEV.reduce((sum, bet) => {
-          return sum + calculateEV(bet.odds, bet.fair_odds!, bet.stake);
-        }, 0) / betsWithEV.length).toFixed(2)
-      : '0.00';
-
-    // Calculate average CLV for bets with closing odds
-    const betsWithCLV = filteredBets.filter(b => b.closing_odds !== null);
-    const avgCLV = betsWithCLV.length > 0
-      ? (betsWithCLV.reduce((sum, bet) => {
-          return sum + calculateCLV(bet.odds, bet.closing_odds!);
-        }, 0) / betsWithCLV.length).toFixed(2)
-      : '0.00';
-
-    return { totalBets, winRate, totalProfit, roi, avgEV, avgCLV };
-  };
-
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const headers = ['Date', 'Sportsbook', 'League', 'Bet Type', 'Odds', 'Fair Odds', 'Closing Odds', 'Stake', 'Outcome', 'EV%', 'CLV%'];
     const rows = bets.map((bet) => [
       bet.bet_date,
@@ -776,16 +412,22 @@ const BetTracker = () => {
     a.href = url;
     a.download = 'bets.csv';
     a.click();
-  };
+  }, [bets]);
 
-  const stats = calculateStats();
-  const filteredBets = bets.filter((bet) => {
-    const sportsbookMatch = filterSportsbook === 'all' || bet.sportsbook_id === filterSportsbook;
-    const leagueMatch = filterLeague === 'all' || bet.league_id === filterLeague;
-    const betTypeMatch = filterBetType === 'all' || bet.bet_type_id === filterBetType;
-    const outcomeMatch = filterOutcome === 'all' || bet.outcome === filterOutcome;
-    return sportsbookMatch && leagueMatch && betTypeMatch && outcomeMatch;
-  });
+  const handleImportClick = useCallback(() => {
+    document.getElementById('csv-upload')?.click();
+  }, []);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -793,612 +435,69 @@ const BetTracker = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-foreground">Professional Bet Tracker</h1>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>Add Bet</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingBet ? 'Edit Bet' : 'Add New Bet'}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label>Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div>
-                  <Label>Sportsbook</Label>
-                  {showNewSportsbook ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newSportsbook}
-                        onChange={(e) => setNewSportsbook(e.target.value)}
-                        placeholder="Enter sportsbook name"
-                      />
-                      <Button type="button" onClick={createSportsbook}>Add</Button>
-                      <Button type="button" variant="outline" onClick={() => setShowNewSportsbook(false)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Select value={formData.sportsbook_id} onValueChange={(value) => setFormData({ ...formData, sportsbook_id: value })}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select sportsbook" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sportsbooks.map((sb) => (
-                            <SelectItem key={sb.id} value={sb.id}>{sb.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" size="icon" variant="outline" onClick={() => setShowNewSportsbook(true)}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Sport/League</Label>
-                  {showNewLeague ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newLeague}
-                        onChange={(e) => setNewLeague(e.target.value)}
-                        placeholder="Enter league name"
-                      />
-                      <Button type="button" onClick={createLeague}>Add</Button>
-                      <Button type="button" variant="outline" onClick={() => setShowNewLeague(false)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Select value={formData.league_id} onValueChange={(value) => setFormData({ ...formData, league_id: value })}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select league" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {leagues.map((league) => (
-                            <SelectItem key={league.id} value={league.id}>{league.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" size="icon" variant="outline" onClick={() => setShowNewLeague(true)}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Bet Type</Label>
-                  {showNewBetType ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newBetType}
-                        onChange={(e) => setNewBetType(e.target.value)}
-                        placeholder="Enter bet type"
-                      />
-                      <Button type="button" onClick={createBetType}>Add</Button>
-                      <Button type="button" variant="outline" onClick={() => setShowNewBetType(false)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Select value={formData.bet_type_id} onValueChange={(value) => setFormData({ ...formData, bet_type_id: value })}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select bet type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {betTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" size="icon" variant="outline" onClick={() => setShowNewBetType(true)}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="odds">Bet Odds (American)</Label>
-                    <Input
-                      id="odds"
-                      type="number"
-                      value={formData.odds}
-                      onChange={(e) => setFormData({ ...formData, odds: e.target.value })}
-                      placeholder="-110"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="fair_odds">Fair Odds (American)</Label>
-                    <Input
-                      id="fair_odds"
-                      type="number"
-                      value={formData.fair_odds}
-                      onChange={(e) => setFormData({ ...formData, fair_odds: e.target.value })}
-                      placeholder="-105"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="closing_odds">Closing Odds (American)</Label>
-                    <Input
-                      id="closing_odds"
-                      type="number"
-                      value={formData.closing_odds}
-                      onChange={(e) => setFormData({ ...formData, closing_odds: e.target.value })}
-                      placeholder="-115"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="stake">Stake ($)</Label>
-                    {bankrollSettings && currentBankroll > 0 && (
-                      <div className="mb-2 p-2 bg-muted rounded-md">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm">
-                            <span className="font-medium text-foreground">
-                              Recommended: ${calculateRecommendedStake(
-                                currentBankroll,
-                                bankrollSettings,
-                                formData.odds ? parseInt(formData.odds) : undefined,
-                                formData.fair_odds ? parseInt(formData.fair_odds) : undefined
-                              ).amount.toFixed(2)}
-                            </span>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {calculateRecommendedStake(
-                                currentBankroll,
-                                bankrollSettings,
-                                formData.odds ? parseInt(formData.odds) : undefined,
-                                formData.fair_odds ? parseInt(formData.fair_odds) : undefined
-                              ).explanation}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const recommended = calculateRecommendedStake(
-                                currentBankroll,
-                                bankrollSettings,
-                                formData.odds ? parseInt(formData.odds) : undefined,
-                                formData.fair_odds ? parseInt(formData.fair_odds) : undefined
-                              );
-                              setFormData({ ...formData, stake: recommended.amount.toFixed(2) });
-                            }}
-                          >
-                            Use
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    <Input
-                      id="stake"
-                      type="number"
-                      step="0.01"
-                      value={formData.stake}
-                      onChange={(e) => setFormData({ ...formData, stake: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="outcome">Status</Label>
-                  <Select value={formData.outcome} onValueChange={(value: any) => setFormData({ ...formData, outcome: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="won">Won</SelectItem>
-                      <SelectItem value="lost">Lost</SelectItem>
-                      <SelectItem value="push">Push</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Strategy Tag (Optional)</Label>
-                  {showNewStrategy ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newStrategy}
-                        onChange={(e) => setNewStrategy(e.target.value)}
-                        placeholder="Enter strategy name"
-                      />
-                      <Button type="button" onClick={createStrategy}>Add</Button>
-                      <Button type="button" variant="outline" onClick={() => setShowNewStrategy(false)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Select value={formData.strategy_id} onValueChange={(value) => setFormData({ ...formData, strategy_id: value })}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select strategy (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {strategies.map((strategy) => (
-                            <SelectItem key={strategy.id} value={strategy.id}>{strategy.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" size="icon" variant="outline" onClick={() => setShowNewStrategy(true)}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Add any notes about this bet (reasoning, context, etc.)"
-                    rows={4}
-                  />
-                </div>
-
-                <Button type="submit" className="w-full">
-                  {editingBet ? 'Update Bet' : 'Add Bet'}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Bets</CardDescription>
-              <CardTitle className="text-3xl">{stats.totalBets}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Win Rate</CardDescription>
-              <CardTitle className="text-3xl">{stats.winRate}%</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total P/L</CardDescription>
-              <CardTitle className={`text-3xl ${stats.totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                ${stats.totalProfit.toFixed(2)}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>ROI</CardDescription>
-              <CardTitle className={`text-3xl ${parseFloat(stats.roi) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {stats.roi}%
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Avg EV%</CardDescription>
-              <CardTitle className={`text-3xl ${parseFloat(stats.avgEV) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {stats.avgEV}%
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Avg CLV%</CardDescription>
-              <CardTitle className={`text-3xl ${parseFloat(stats.avgCLV) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {stats.avgCLV}%
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-4">
-          <Select value={filterSportsbook} onValueChange={setFilterSportsbook}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sportsbook" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sportsbooks</SelectItem>
-              {sportsbooks.map((sb) => (
-                <SelectItem key={sb.id} value={sb.id}>{sb.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterLeague} onValueChange={setFilterLeague}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="League" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Leagues</SelectItem>
-              {leagues.map((league) => (
-                <SelectItem key={league.id} value={league.id}>{league.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterBetType} onValueChange={setFilterBetType}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Bet Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Bet Types</SelectItem>
-              {betTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterOutcome} onValueChange={setFilterOutcome}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Outcome" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Outcomes</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="won">Won</SelectItem>
-              <SelectItem value="lost">Lost</SelectItem>
-              <SelectItem value="push">Push</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={exportToCSV}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button variant="outline" onClick={() => document.getElementById('csv-upload')?.click()} disabled={isImporting}>
-            <Plus className="mr-2 h-4 w-4" />
-            {isImporting ? 'Importing...' : 'Import from CSV'}
-          </Button>
-          <Button variant="outline" onClick={downloadTemplate}>
-            <Download className="mr-2 h-4 w-4" />
-            Template
-          </Button>
-          <input
-            id="csv-upload"
-            type="file"
-            accept=".csv"
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
+          <BetFormDialog
+            isOpen={isFormDialogOpen}
+            onOpenChange={(open) => {
+              setIsFormDialogOpen(open);
+              if (!open) setEditingBet(null);
+            }}
+            editingBet={editingBet}
+            onSubmit={handleSubmitBet}
+            sportsbooks={sportsbooks}
+            leagues={leagues}
+            betTypes={betTypes}
+            strategies={strategies}
+            onCreateSportsbook={handleCreateSportsbook}
+            onCreateLeague={handleCreateLeague}
+            onCreateBetType={handleCreateBetType}
+            onCreateStrategy={handleCreateStrategy}
+            bankrollSettings={bankrollSettings || null}
+            currentBankroll={currentBankroll}
           />
         </div>
 
-        {/* Bets Table */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Sportsbook</TableHead>
-                    <TableHead>League</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Odds</TableHead>
-                    <TableHead>Fair</TableHead>
-                    <TableHead>Close</TableHead>
-                    <TableHead>Stake</TableHead>
-                    <TableHead>EV%</TableHead>
-                    <TableHead>CLV%</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={12} className="text-center">Loading...</TableCell>
-                    </TableRow>
-                  ) : filteredBets.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={12} className="text-center">No bets found</TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredBets.map((bet) => {
-                      const ev = bet.fair_odds ? calculateEV(bet.odds, bet.fair_odds, bet.stake) : null;
-                      const clv = bet.closing_odds ? calculateCLV(bet.odds, bet.closing_odds) : null;
-                      
-                      return (
-                        <TableRow key={bet.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleViewDetails(bet)}>
-                          <TableCell className="whitespace-nowrap">{bet.bet_date}</TableCell>
-                          <TableCell>{bet.sportsbooks?.name || '-'}</TableCell>
-                          <TableCell>{bet.leagues?.name || '-'}</TableCell>
-                          <TableCell>{bet.bet_types?.name || '-'}</TableCell>
-                          <TableCell className="font-mono">{formatAmericanOdds(bet.odds)}</TableCell>
-                          <TableCell className="font-mono text-muted-foreground">
-                            {bet.fair_odds ? formatAmericanOdds(bet.fair_odds) : '-'}
-                          </TableCell>
-                          <TableCell className="font-mono text-muted-foreground">
-                            {bet.closing_odds ? formatAmericanOdds(bet.closing_odds) : '-'}
-                          </TableCell>
-                          <TableCell>${bet.stake}</TableCell>
-                          <TableCell className={ev !== null ? (ev >= 0 ? 'text-green-500' : 'text-red-500') : ''}>
-                            {ev !== null ? `${ev.toFixed(2)}%` : '-'}
-                          </TableCell>
-                          <TableCell className={clv !== null ? (clv >= 0 ? 'text-green-500' : 'text-red-500') : ''}>
-                            {clv !== null ? `${clv.toFixed(2)}%` : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              bet.outcome === 'won' ? 'bg-green-500/20 text-green-500' :
-                              bet.outcome === 'lost' ? 'bg-red-500/20 text-red-500' :
-                              bet.outcome === 'push' ? 'bg-blue-500/20 text-blue-500' :
-                              'bg-yellow-500/20 text-yellow-500'
-                            }`}>
-                              {bet.outcome}
-                            </span>
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(bet)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(bet.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <BetStats stats={stats} />
 
-        {/* Bet Details Dialog */}
-        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Bet Details</DialogTitle>
-            </DialogHeader>
-            {viewingBet && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Date</Label>
-                    <p className="font-medium">{format(new Date(viewingBet.bet_date), 'PPP')}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Status</Label>
-                    <p>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        viewingBet.outcome === 'won' ? 'bg-green-500/20 text-green-500' :
-                        viewingBet.outcome === 'lost' ? 'bg-red-500/20 text-red-500' :
-                        viewingBet.outcome === 'push' ? 'bg-blue-500/20 text-blue-500' :
-                        'bg-yellow-500/20 text-yellow-500'
-                      }`}>
-                        {viewingBet.outcome}
-                      </span>
-                    </p>
-                  </div>
-                </div>
+        <BetFilters
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          sportsbooks={sportsbooks}
+          leagues={leagues}
+          betTypes={betTypes}
+          onExport={exportToCSV}
+          onImport={handleImportClick}
+          onDownloadTemplate={downloadTemplate}
+          isImporting={isImporting}
+        />
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Sportsbook</Label>
-                    <p className="font-medium">{viewingBet.sportsbooks?.name || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">League</Label>
-                    <p className="font-medium">{viewingBet.leagues?.name || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Bet Type</Label>
-                    <p className="font-medium">{viewingBet.bet_types?.name || '-'}</p>
-                  </div>
-                </div>
+        <input
+          id="csv-upload"
+          type="file"
+          accept=".csv"
+          onChange={handleFileUpload}
+          style={{ display: 'none' }}
+        />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Bet Odds</Label>
-                    <p className="font-mono text-lg">{formatAmericanOdds(viewingBet.odds)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Stake</Label>
-                    <p className="text-lg">${viewingBet.stake}</p>
-                  </div>
-                </div>
+        <BetTable
+          bets={filteredBets}
+          isLoading={betsLoading}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
 
-                {viewingBet.fair_odds && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Fair Odds</Label>
-                      <p className="font-mono">{formatAmericanOdds(viewingBet.fair_odds)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Expected Value (EV)</Label>
-                      <p className={`font-medium ${calculateEV(viewingBet.odds, viewingBet.fair_odds, viewingBet.stake) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {calculateEV(viewingBet.odds, viewingBet.fair_odds, viewingBet.stake).toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                )}
+        <BetDetailsDialog
+          bet={viewingBet}
+          isOpen={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
+          onEdit={handleEdit}
+        />
 
-                {viewingBet.closing_odds && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Closing Odds</Label>
-                      <p className="font-mono">{formatAmericanOdds(viewingBet.closing_odds)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Closing Line Value (CLV)</Label>
-                      <p className={`font-medium ${calculateCLV(viewingBet.odds, viewingBet.closing_odds) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {calculateCLV(viewingBet.odds, viewingBet.closing_odds).toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {(viewingBet.outcome === 'won' || viewingBet.outcome === 'lost') && (
-                  <div>
-                    <Label className="text-muted-foreground">Profit/Loss</Label>
-                    <p className={`text-xl font-bold ${
-                      viewingBet.outcome === 'won' 
-                        ? 'text-green-500' 
-                        : 'text-red-500'
-                    }`}>
-                      {viewingBet.outcome === 'won' 
-                        ? `+$${calculateProfit(viewingBet.odds, viewingBet.stake).toFixed(2)}`
-                        : `-$${viewingBet.stake.toFixed(2)}`
-                      }
-                    </p>
-                  </div>
-                )}
-
-                {viewingBet.notes && (
-                  <div>
-                    <Label className="text-muted-foreground">Notes</Label>
-                    <div className="mt-2 p-4 bg-muted rounded-lg">
-                      <p className="whitespace-pre-wrap">{viewingBet.notes}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>Close</Button>
-                  <Button onClick={() => {
-                    setIsDetailsDialogOpen(false);
-                    handleEdit(viewingBet);
-                  }}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Bet
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <DeleteConfirmDialog
+          isOpen={deleteConfirmId !== null}
+          onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+          onConfirm={confirmDelete}
+        />
       </div>
     </div>
   );
