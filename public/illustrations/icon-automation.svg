@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#2A2622" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <!-- gear -->
+  <circle cx="22" cy="22" r="7"/>
+  <circle cx="22" cy="22" r="2.5"/>
+  <path d="M22 9 L 22 13"/>
+  <path d="M22 31 L 22 35"/>
+  <path d="M9 22 L 13 22"/>
+  <path d="M31 22 L 35 22"/>
+  <path d="M12.8 12.8 L 15.5 15.5"/>
+  <path d="M28.5 28.5 L 31.2 31.2"/>
+  <path d="M12.8 31.2 L 15.5 28.5"/>
+  <path d="M28.5 15.5 L 31.2 12.8"/>
+</svg>

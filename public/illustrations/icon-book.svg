@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" stroke="#2A2622" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <!-- open book -->
+  <path d="M10 12 L 22 15 L 34 12 L 34 32 L 22 35 L 10 32 Z" fill="#FDFAF4"/>
+  <path d="M22 15 L 22 35"/>
+  <path d="M14 19 L 19 20"/>
+  <path d="M14 24 L 19 25"/>
+  <path d="M25 20 L 30 19"/>
+  <path d="M25 25 L 30 24"/>
+</svg>

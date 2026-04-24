@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 140" fill="none" stroke="#2A2622" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- ground line -->
+  <path d="M10 128 Q 80 124, 150 128" stroke-width="1.5"/>
+  <!-- sitting ghost body -->
+  <path d="M48 40 C 48 22, 64 12, 80 12 C 98 12, 112 24, 112 40 L 112 104 Q 112 118, 100 120 L 60 120 Q 48 118, 48 104 Z" fill="#FDFAF4"/>
+  <!-- open dot eyes (friendly + awake) -->
+  <circle cx="68" cy="50" r="2.4" fill="#2A2622" stroke="none"/>
+  <circle cx="92" cy="50" r="2.4" fill="#2A2622" stroke="none"/>
+  <!-- small curved smile -->
+  <path d="M72 62 Q 80 70, 88 62"/>
+  <!-- tiny blush -->
+  <circle cx="60" cy="62" r="2.2" fill="#E8C8B4" stroke="none" opacity="0.55"/>
+  <circle cx="100" cy="62" r="2.2" fill="#E8C8B4" stroke="none" opacity="0.55"/>
+  <!-- folded arms hint -->
+  <path d="M58 78 L 102 78" stroke-width="1.5"/>
+  <!-- little legs poking forward -->
+  <path d="M64 120 L 64 128" />
+  <path d="M96 120 L 96 128" />
+  <!-- book beside -->
+  <path d="M120 104 L 140 104 L 140 120 L 120 120 Z" fill="#EAE2D2"/>
+  <path d="M130 104 L 130 120" stroke-width="1.2"/>
+</svg>

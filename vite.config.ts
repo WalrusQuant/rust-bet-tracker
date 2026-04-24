@@ -1,18 +1,19 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import tailwindcss from "@tailwindcss/vite";
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+const host = process.env.TAURI_DEV_HOST;
+
+export default defineConfig(async () => ({
+  plugins: [svelte(), tailwindcss()],
+  clearScreen: false,
   server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    port: 1420,
+    strictPort: true,
+    host: host || false,
+    hmr: host
+      ? { protocol: "ws", host, port: 1421 }
+      : undefined,
+    watch: { ignored: ["**/src-tauri/**"] },
   },
 }));

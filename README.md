@@ -1,73 +1,165 @@
-# Welcome to your Lovable project
+# Bet Tracker
 
-## Project info
+Local-first sports-betting performance tracker with 21 analysis calculators.
+Desktop app built with Rust + Tauri 2 + Svelte 5 + SQLite. Single-user,
+fully offline, no auth, no cloud sync — every number is computed on your
+machine from your own data.
 
-**URL**: https://lovable.dev/projects/c8a8377e-f36f-479f-9965-337074207262
+## Features
 
-## How can I edit this code?
+### Core workflow
 
-There are several ways of editing your application.
+- **Tracker** — Log bets with sportsbook, league, bet type, odds, fair odds,
+  closing odds, stake, outcome, and strategy tags. Sortable table, filter
+  by date range / book / outcome, inline settle (W/L/P), edit, delete.
+- **Analytics** — Three-section dashboard:
+  - *Where you stand* — current bankroll, peak, max drawdown, live
+    exposure on pending bets, last-30-days record + ROI.
+  - *Are you sharp?* — expected-vs-actual profit (running hot / cold /
+    calibrated), CLV beat rate, bankroll curve with drawdown shading.
+  - *Where profit comes from* — per-sportsbook / league / bet-type /
+    strategy breakdown with ROI bars and small-sample flags.
+- **Bankroll** — Overall balance + per-sportsbook balances, sizing rule
+  (fixed %, fixed $, fractional Kelly), deposits/withdrawals log with
+  edit + delete.
+- **Settings** — Manage sportsbooks, leagues, bet types, strategies. Full
+  database reset (re-seeds defaults).
 
-**Use Lovable**
+### Calculators
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c8a8377e-f36f-479f-9965-337074207262) and start prompting.
+Twenty-one focused tools for odds math, bet sizing, market analysis, and
+simulations. All math runs locally in Rust.
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Odds & probability** — Odds Converter · Sharp Implied · Devig (5
+  methods: EM, Proportional, Shin, Odds Ratio, Logarithmic) · Hold ·
+  Vig Comparison
+- **Bet sizing & value** — Expected Value · Kelly Criterion · Parlay
+- **Lines & markets** — Arbitrage · Hedge · CLV · Better Line (CDF
+  analysis) · Alt Line Pricer
+- **Simulations** — Risk of Ruin (seeded Monte Carlo) · Poisson Match
+  Predictor · Negative Binomial Match Predictor · Player Prop Simulator
+  (Poisson / NegBin / Gamma / LogNormal)
+- **Advanced** — Bayesian Update (Beta-Binomial) · Regression to the
+  Mean · Middle Finder · Teaser EV
 
-**Use your preferred IDE**
+## Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+| Layer    | Tech                                                     |
+| -------- | -------------------------------------------------------- |
+| Backend  | Rust, Tauri 2, rusqlite (bundled SQLite), statrs, rand   |
+| Frontend | Svelte 5 (runes), Vite 6, Tailwind v4, TypeScript        |
+| Charts   | layerchart (bankroll curve), hand-rolled SVG (sparklines) |
+| Router   | svelte-spa-router (hash routing)                         |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Data lives in a single SQLite file under the OS app-data dir
+(`~/Library/Application Support/com.adamwickwire.bettracker/` on macOS).
 
-Follow these steps:
+## Develop
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+bun install
+bun tauri dev      # launches the desktop app
 ```
 
-**Edit a file directly in GitHub**
+When you change Rust code, the app rebuilds automatically. Svelte changes
+hot-reload. If you add a new `#[tauri::command]`, restart `bun tauri dev`
+so the new handler registers on fresh boot.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Build
 
-**Use GitHub Codespaces**
+```sh
+bun tauri build    # .dmg / .app in src-tauri/target/release/bundle/
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Test
 
-## What technologies are used for this project?
+```sh
+cd src-tauri && cargo test --lib calc::
+```
 
-This project is built with:
+All Rust math is unit-tested with known-value assertions. Monte Carlo
+simulators take an optional `seed` parameter for deterministic tests.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Layout
 
-## How can I deploy this project?
+```
+src/                          Svelte frontend
+  App.svelte                  Top-level layout + router
+  routes/
+    Tracker.svelte            Bet list + filters + modal form
+    Analytics.svelte          Three-section dashboard
+    Bankroll.svelte           Balances, sizing, transactions
+    Settings.svelte           Tag management + DB reset
+    Calculators.svelte        Grid of 21 calculators by category
+    CalculatorPage.svelte     Dynamic dispatch for /calculators/:slug
+    calculators/              One Svelte file per calculator (21)
+  lib/
+    api.ts                    Tracker/Analytics/Bankroll Tauri wrappers
+    types.ts                  Core domain types
+    format.ts                 money / pct / odds formatters
+    confirm.svelte.ts         App-wide confirm dialog store
+    calculators/
+      api.ts                  calc_* Tauri wrappers (21)
+      types.ts                calc input/output types
+      registry.ts             central calc list (slug, category, blurb)
+      format.ts               calc-specific formatters
+      sports.ts               per-sport spread/total std-dev defaults
+      regression-config.ts    sport × stat regression defaults
+    components/
+      BetForm.svelte          shared bet add/edit form (used by Tracker)
+      TransactionForm.svelte  shared tx add/edit form (used by Bankroll)
+      BankrollChart.svelte    layerchart — bankroll + peak + drawdown
+      ConfirmDialog.svelte    app-wide confirm modal
+      Modal.svelte            generic modal chrome
+      SketchDivider.svelte    wobbly hand-drawn divider
+      Ghost.svelte            empty-state mascot
+      LineChart.svelte        tiny SVG line chart
+      calc/                   11 shared primitives for calc pages
 
-Simply open [Lovable](https://lovable.dev/projects/c8a8377e-f36f-479f-9965-337074207262) and click on Share -> Publish.
+src-tauri/                    Rust backend
+  Cargo.toml                  tauri, rusqlite, statrs, rand, rand_chacha
+  migrations/                 versioned .sql files
+  tauri.conf.json
+  src/
+    main.rs
+    lib.rs                    Tauri builder + invoke_handler
+    db.rs                     rusqlite connection + migration runner
+    error.rs                  AppError + serde
+    models.rs                 Bet, Transaction, Stats, GroupStats, ...
+    commands.rs               DB-backed IPC commands
+    calc_commands.rs          21 calc_* IPC commands
+    calc/
+      mod.rs                  re-exports
+      odds.rs                 American/decimal/fractional, EV, Kelly, CLV
+      probability.rs          normal CDF + inverse (via statrs)
+      devig.rs                5 devig methods
+      hold.rs                 hold%
+      vig_comparison.rs       multi-book vig sort
+      parlay.rs               combined decimal odds
+      arbitrage.rs            arb detection + stake splits
+      hedge.rs                hedge stake equalizer
+      bayesian.rs             Beta-Binomial update
+      regression.rs           shrinkage + 90% CI
+      bestline.rs             implied true line + comparison
+      altline.rs              alternate-line ladder
+      risk_of_ruin.rs         Monte Carlo bankroll paths
+      middle.rs               middle/trap gap math
+      teaser_ev.rs            NFL teaser analyzer
+      poisson.rs              match predictor from Poisson λ
+      nbinom.rs               match predictor with overdispersion
+      prop_sim.rs             player prop Monte Carlo
 
-## Can I connect a custom domain to my Lovable project?
+docs/
+  blog/                       15 MDX posts for future GitHub Pages site
+                              (authored in the source app; stashed here
+                              for the standalone docs site to build)
+```
 
-Yes, you can!
+## Docs
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Long-form write-ups for each calculator live as MDX files in
+`docs/blog/`. They are **not** rendered inside the Tauri app — the app
+shows a short 3–4 sentence blurb per calc (authored in
+`src/lib/calculators/registry.ts`). The `.mdx` files are the canonical
+source for a separate GitHub Pages documentation site; swap
+`DOCS_BASE_URL` in the registry when that site goes live.

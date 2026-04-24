@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160" fill="none" stroke="#2A2622" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- body -->
+  <path d="M24 62 C 24 38, 44 20, 62 20 C 82 20, 96 38, 96 62 L 96 134 L 88 140 L 80 134 L 72 140 L 64 134 L 56 140 L 48 134 L 40 140 L 32 134 L 24 140 Z" fill="#FDFAF4"/>
+  <!-- eyes (one raised brow) -->
+  <circle cx="50" cy="70" r="2.5" fill="#2A2622" stroke="none"/>
+  <circle cx="76" cy="70" r="2.5" fill="#2A2622" stroke="none"/>
+  <path d="M44 62 L 54 58" stroke-width="1.5"/>
+  <!-- thoughtful mouth -->
+  <path d="M58 88 Q 62 86, 68 88"/>
+  <!-- thought bubbles -->
+  <circle cx="104" cy="46" r="3"/>
+  <circle cx="114" cy="34" r="5"/>
+  <circle cx="126" cy="22" r="8"/>
+  <!-- hand on chin -->
+  <path d="M68 92 Q 76 96, 78 88"/>
+</svg>
