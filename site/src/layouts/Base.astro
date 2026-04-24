@@ -4,17 +4,71 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description?: string;
+  /** Absolute or root-relative image URL for og:image / twitter:image. Defaults to the site-wide OG card. */
+  image?: string;
+  /** Page type — `website` for landing / docs list, `article` for blog posts. */
+  ogType?: "website" | "article";
+  /** ISO 8601 publication date, for blog post articles. */
+  publishedTime?: string;
+  /** Tags list for blog post articles. */
+  tags?: string[];
   wide?: boolean;
   currentNav?: "home" | "blog";
 }
+
 const {
   title,
   description = "Local-first sports-betting performance tracker with 21 analysis calculators. Rust + Tauri + Svelte, runs on your machine.",
+  image,
+  ogType = "website",
+  publishedTime,
+  tags = [],
   wide = false,
   currentNav = "home",
 } = Astro.props;
+
 const base = import.meta.env.BASE_URL;
 const blogHref = base.endsWith("/") ? `${base}blog` : `${base}/blog`;
+
+// Canonical + OG URL: absolute, honoring the Astro site + base config.
+const siteOrigin = Astro.site?.origin ?? "https://walrusquant.github.io";
+const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).toString();
+
+// OG image: resolve to absolute URL so crawlers can fetch it from anywhere.
+const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+const defaultOgPath = `${cleanBase}/og-image.svg`;
+const ogImage = image
+  ? (image.startsWith("http") ? image : new URL(image, siteOrigin).toString())
+  : new URL(defaultOgPath, siteOrigin).toString();
+
+const siteName = "Bet Tracker";
+const twitterHandle = "@walrusquant"; // optional; update or remove
+
+// JSON-LD structured data
+const SITE_DESCRIPTION =
+  "Local-first sports-betting performance tracker with 21 analysis calculators. Rust + Tauri + Svelte, runs on your machine.";
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: siteName,
+  url: new URL(cleanBase + "/", siteOrigin).toString(),
+  description: SITE_DESCRIPTION,
+};
+const articleJsonLd =
+  ogType === "article"
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: title,
+        description,
+        image: ogImage,
+        datePublished: publishedTime,
+        url: canonicalUrl,
+        author: { "@type": "Organization", name: siteName },
+        publisher: { "@type": "Organization", name: siteName },
+        keywords: tags.join(", "),
+      }
+    : null;
 ---
 
 <!doctype html>
@@ -22,14 +76,57 @@ const blogHref = base.endsWith("/") ? `${base}blog` : `${base}/blog`;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={description} />
+
+    <!-- Primary SEO -->
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="robots" content="index, follow" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Bet Tracker — local-first tracking + 21 analysis calculators" />
+    <meta property="og:locale" content="en_US" />
+    {publishedTime && <meta property="article:published_time" content={publishedTime} />}
+    {tags.map((t) => <meta property="article:tag" content={t} />)}
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content="Bet Tracker — local-first tracking + 21 analysis calculators" />
+    {twitterHandle && <meta name="twitter:site" content={twitterHandle} />}
+    {twitterHandle && <meta name="twitter:creator" content={twitterHandle} />}
+
+    <!-- Theme color -->
+    <meta name="theme-color" content="#F3ECDF" />
+    <meta name="color-scheme" content="light" />
+
+    <!-- Favicons (use ghost mascot as a simple mark) -->
+    <link rel="icon" type="image/svg+xml" href={`${cleanBase}/illustrations/ghost-sitting.svg`} />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+
+    <!-- JSON-LD structured data -->
+    <script type="application/ld+json" set:html={JSON.stringify(websiteJsonLd)}></script>
+    {articleJsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)}></script>
+    )}
   </head>
   <body>
     <nav>

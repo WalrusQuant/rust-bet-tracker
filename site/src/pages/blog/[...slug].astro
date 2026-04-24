@@ -23,9 +23,17 @@ function fmtDate(d: Date): string {
 }
 
 const base = import.meta.env.BASE_URL;
+const seoDescription = post.data.excerpt ?? `${post.data.title} — methodology and math write-up.`;
 ---
 
-<Base title={post.data.title} description={post.data.excerpt}>
+<Base
+  title={`${post.data.title} · Bet Tracker Docs`}
+  description={seoDescription}
+  ogType="article"
+  publishedTime={post.data.date.toISOString()}
+  tags={post.data.tags ?? []}
+  currentNav="blog"
+>
   <a href={base} class="back-link">← All posts</a>
 
   <article class="prose" style="margin-top: 2rem;">

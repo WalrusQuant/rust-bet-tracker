@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://walrusquant.github.io/rust-bet-tracker/sitemap-index.xml
