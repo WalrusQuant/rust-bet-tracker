@@ -5,6 +5,7 @@ import SketchDivider from "../components/SketchDivider.astro";
 const base = import.meta.env.BASE_URL;
 const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
 const blogHref = `${cleanBase}/blog`;
+const guideHref = `${cleanBase}/getting-started`;
 const ghostSrc = `${cleanBase}/illustrations/ghost-sitting.svg`;
 const ghostThinking = `${cleanBase}/illustrations/ghost-thinking.svg`;
 const ghostWaving = `${cleanBase}/illustrations/ghost-waving.svg`;
@@ -97,7 +98,7 @@ const calcs: Record<string, Array<{ slug: string; name: string; glyph: string }>
         >
           View on GitHub
         </a>
-        <a href={blogHref} class="btn btn-secondary">Read the docs →</a>
+        <a href={guideHref} class="btn btn-secondary">Get started →</a>
       </div>
       <div class="badges">
         <span class="badge">Rust + Tauri</span>
@@ -239,6 +240,7 @@ const calcs: Record<string, Array<{ slug: string; name: string; glyph: string }>
       >
         GitHub
       </a>
+      <a href={guideHref} class="btn btn-secondary">Guide</a>
       <a href={blogHref} class="btn btn-secondary">Docs</a>
     </div>
   </section>

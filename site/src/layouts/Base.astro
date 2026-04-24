@@ -13,7 +13,7 @@ interface Props {
   /** Tags list for blog post articles. */
   tags?: string[];
   wide?: boolean;
-  currentNav?: "home" | "blog";
+  currentNav?: "home" | "guide" | "blog";
 }
 
 const {
@@ -29,6 +29,7 @@ const {
 
 const base = import.meta.env.BASE_URL;
 const blogHref = base.endsWith("/") ? `${base}blog` : `${base}/blog`;
+const guideHref = base.endsWith("/") ? `${base}getting-started` : `${base}/getting-started`;
 
 // Canonical + OG URL: absolute, honoring the Astro site + base config.
 const siteOrigin = Astro.site?.origin ?? "https://walrusquant.github.io";
@@ -133,6 +134,7 @@ const articleJsonLd =
       <a href={base} class="brand">BET TRACKER.</a>
       <div class="nav-links">
         <a href={base} class={currentNav === "home" ? "active" : ""}>Home</a>
+        <a href={guideHref} class={currentNav === "guide" ? "active" : ""}>Guide</a>
         <a href={blogHref} class={currentNav === "blog" ? "active" : ""}>Docs</a>
         <a href="https://github.com/WalrusQuant/rust-bet-tracker" target="_blank" rel="noopener">GitHub</a>
       </div>
@@ -144,6 +146,8 @@ const articleJsonLd =
       <span>Bet Tracker · local-first bet tracking + analysis</span>
       <span>
         <a href="https://github.com/WalrusQuant/rust-bet-tracker" target="_blank" rel="noopener">GitHub</a>
+        <span style="margin: 0 0.5rem; color: var(--ink-muted);">·</span>
+        <a href={guideHref}>Guide</a>
         <span style="margin: 0 0.5rem; color: var(--ink-muted);">·</span>
         <a href={blogHref}>Docs</a>
       </span>

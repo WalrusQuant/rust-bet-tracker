@@ -1,0 +1,439 @@
+---
+import Base from "../layouts/Base.astro";
+import SketchDivider from "../components/SketchDivider.astro";
+
+const base = import.meta.env.BASE_URL;
+const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+const blogHref = `${cleanBase}/blog`;
+---
+
+<Base
+  title="Getting Started · Bet Tracker"
+  description="Install Bet Tracker from source, run it for the first time, log your first bet, and use the built-in calculators."
+  currentNav="guide"
+  wide={false}
+>
+  <header>
+    <div class="kicker">Install · first run · daily use</div>
+    <h1 class="display display-xl" style="margin-top: 0.5rem;">GETTING STARTED.</h1>
+  </header>
+
+  <div style="margin-top: 1.5rem;">
+    <SketchDivider />
+  </div>
+
+  <p class="lede">
+    Bet Tracker is a desktop app, not a website. Right now the only way to get
+    it on your machine is to build it from source. The steps below take about
+    ten minutes the first time and under a minute on every subsequent pull.
+  </p>
+
+  <nav class="toc" aria-label="On this page">
+    <div class="kicker">On this page</div>
+    <ol>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#install">Install from source</a></li>
+      <li><a href="#first-run">Your first run</a></li>
+      <li><a href="#calculators">Using the calculators</a></li>
+      <li><a href="#data">Where your data lives</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+  </nav>
+
+  <section class="block" id="requirements">
+    <h2 class="display display-lg">REQUIREMENTS.</h2>
+    <p>
+      The app works on macOS, Windows, and Linux. You need three things
+      installed before building:
+    </p>
+    <ul>
+      <li>
+        <strong>Rust</strong> — install via
+        <a href="https://rustup.rs" target="_blank" rel="noopener">rustup.rs</a>.
+        The stable toolchain is fine; Tauri's build driver pulls the targets it
+        needs.
+      </li>
+      <li>
+        <strong>Bun</strong> — install via
+        <a href="https://bun.com" target="_blank" rel="noopener">bun.com</a>
+        (<code>curl -fsSL https://bun.com/install | bash</code>). Bun runs the
+        Vite dev server and drives the Tauri CLI. npm or pnpm work too if you
+        prefer — swap <code>bun</code> for your package manager in the commands
+        below.
+      </li>
+      <li>
+        <strong>Platform toolchain</strong> — macOS needs Xcode Command Line
+        Tools (<code>xcode-select --install</code>). Windows needs the
+        Microsoft Visual Studio C++ build tools and WebView2 (preinstalled on
+        Windows 11). Linux needs <code>webkit2gtk</code>, <code>libgtk</code>,
+        and a few build deps — Tauri's
+        <a href="https://tauri.app/start/prerequisites/" target="_blank" rel="noopener">prerequisites page</a>
+        has the exact apt/dnf lines.
+      </li>
+    </ul>
+  </section>
+
+  <section class="block" id="install">
+    <h2 class="display display-lg">INSTALL FROM SOURCE.</h2>
+    <p>Clone the repo, install JS deps, and launch the dev build:</p>
+    <pre><code>git clone https://github.com/WalrusQuant/rust-bet-tracker.git
+cd rust-bet-tracker
+bun install
+bun tauri dev</code></pre>
+    <p>
+      The first build is the slow one — Rust compiles Tauri, rusqlite, and
+      statrs from source, which takes a few minutes on modern hardware.
+      Subsequent runs are incremental and cold-start in a couple of seconds.
+      A native window opens when the build finishes.
+    </p>
+    <p>
+      To produce a distributable binary instead of a dev build:
+    </p>
+    <pre><code>bun tauri build</code></pre>
+    <p>
+      The installer lands in
+      <code>src-tauri/target/release/bundle/</code> — <code>.dmg</code> on
+      macOS, <code>.msi</code> on Windows, <code>.AppImage</code> or
+      <code>.deb</code> on Linux. Nothing is signed; macOS will ask you to
+      right-click &rarr; Open the first time.
+    </p>
+  </section>
+
+  <section class="block" id="first-run">
+    <h2 class="display display-lg">YOUR FIRST RUN.</h2>
+    <p>
+      The first time the app opens, it creates a fresh SQLite file with a
+      default set of sportsbooks, leagues, bet types, and strategies. Your
+      bankroll starts at <strong>$0</strong>. A five-minute loop to get
+      oriented:
+    </p>
+    <ol class="steps">
+      <li>
+        <strong>Seed your bankroll.</strong> Open <em>Bankroll</em>, click
+        <em>Add transaction</em>, and log a deposit for whatever amount you're
+        actually betting with. The overall balance on the dashboard updates
+        instantly.
+      </li>
+      <li>
+        <strong>Log a bet.</strong> Open <em>Tracker</em> &rarr; <em>Add bet</em>.
+        Pick a sportsbook, league, bet type, and enter your odds + stake. If
+        you know the fair odds (from a sharp book or a devig), drop them in
+        too — it unlocks expected-value tracking downstream.
+      </li>
+      <li>
+        <strong>Settle it.</strong> When the result comes in, click the
+        W / L / P buttons on the row. Push returns the stake; loss zeroes out;
+        win applies the profit. Bankroll and analytics both recompute.
+      </li>
+      <li>
+        <strong>Look at <em>Analytics</em>.</strong> Three sections: where you
+        stand (current vs peak, live exposure, last 30 days), are you sharp
+        (expected profit, CLV beat rate, bankroll curve), and where profit
+        comes from (per-book / league / bet-type breakdown). With one bet
+        logged you won't see much — but it's the shape you'll be looking at
+        once you've logged fifty.
+      </li>
+      <li>
+        <strong>Set your sizing rule.</strong> Back on <em>Bankroll</em>,
+        choose fixed $, fixed %, or fractional Kelly. The app doesn't auto-size
+        bets for you — it's a reference while you're logging.
+      </li>
+    </ol>
+  </section>
+
+  <section class="block" id="calculators">
+    <h2 class="display display-lg">USING THE CALCULATORS.</h2>
+    <p>
+      The <em>Calculators</em> tab has twenty-one tools grouped by purpose.
+      They're independent of the tracker — you don't have to log a bet to use
+      them — but most of them complement each other.
+    </p>
+
+    <h3>Pre-bet workflow</h3>
+    <p>A typical "is this bet worth it" loop uses three to four of the calcs:</p>
+    <ol>
+      <li>
+        <strong>Devig</strong> a sharp book's price on the same market to get a
+        fair probability. Pick a method that matches the market shape — EM for
+        vanilla two-way lines, Shin for three-way soccer, Logarithmic when the
+        favorite is very heavy.
+      </li>
+      <li>
+        <strong>Expected Value</strong> takes the fair probability + your book's
+        price and returns EV%. Positive means long-run edge.
+      </li>
+      <li>
+        <strong>Kelly Criterion</strong> converts the edge into a suggested
+        stake. Most bettors run a fraction of Kelly (quarter or half) — the
+        calc has a slider.
+      </li>
+      <li>
+        <strong>Risk of Ruin</strong> (optional) simulates tens of thousands of
+        bankroll paths at your edge + variance to show how aggressive is too
+        aggressive.
+      </li>
+    </ol>
+
+    <h3>Market analysis</h3>
+    <p>
+      <strong>Vig Comparison</strong> ranks multiple books' hold on the same
+      market so you know which one is the pricing floor. <strong>Arbitrage</strong>
+      and <strong>Hedge</strong> size the second leg once you already have the
+      first. <strong>Middle Finder</strong> and <strong>Teaser EV</strong> are
+      for the specific structures they're named after.
+    </p>
+
+    <h3>Game simulators</h3>
+    <p>
+      <strong>Poisson Match</strong>, <strong>Negative Binomial Match</strong>,
+      and <strong>Player Prop Simulator</strong> take a model input (expected
+      goals, expected points, etc.) and return a full score matrix or prop
+      distribution — fair ML, spread, total, over/under at every line. Use
+      them when you have a projection and want every derived market at once.
+    </p>
+
+    <h3>Where to read more</h3>
+    <p>
+      Every calculator has a short blurb in the app explaining what it does.
+      For the full derivation and worked examples, the
+      <a href={blogHref}>docs write-ups</a> cover each one in depth — they're
+      the source material the in-app blurbs are condensed from.
+    </p>
+  </section>
+
+  <section class="block" id="data">
+    <h2 class="display display-lg">WHERE YOUR DATA LIVES.</h2>
+    <p>
+      Everything — bets, transactions, sportsbooks, strategies — sits in one
+      SQLite file under the OS app-data directory:
+    </p>
+    <ul class="paths">
+      <li>
+        <strong>macOS</strong> —
+        <code>~/Library/Application Support/com.adamwickwire.bettracker/</code>
+      </li>
+      <li>
+        <strong>Windows</strong> —
+        <code>%APPDATA%\com.adamwickwire.bettracker\</code>
+      </li>
+      <li>
+        <strong>Linux</strong> —
+        <code>~/.local/share/com.adamwickwire.bettracker/</code>
+      </li>
+    </ul>
+    <p>
+      <strong>Backup</strong> is just copying the <code>.db</code> file
+      somewhere safe. <strong>Restore</strong> is copying it back.
+      <strong>Move to a new machine</strong> is the same thing plus a fresh
+      build of the app. The file is portable across platforms — Rust's SQLite
+      build is the same on every OS.
+    </p>
+    <p>
+      The <em>Settings</em> tab has a <strong>Reset database</strong> button
+      that wipes everything and re-seeds the defaults. It's destructive and
+      confirms twice; there's no undo.
+    </p>
+  </section>
+
+  <section class="block" id="troubleshooting">
+    <h2 class="display display-lg">TROUBLESHOOTING.</h2>
+    <h3>The dev build fails with a webkit/gtk error on Linux</h3>
+    <p>
+      You're missing system libs. Run the apt/dnf one-liner on the
+      <a href="https://tauri.app/start/prerequisites/" target="_blank" rel="noopener">Tauri prerequisites page</a>
+      for your distro, then <code>bun tauri dev</code> again.
+    </p>
+
+    <h3>macOS won't open the built app</h3>
+    <p>
+      Right-click the <code>.app</code> and pick <em>Open</em>. You'll get a
+      Gatekeeper warning; approve it once and macOS remembers. Because the
+      bundle is unsigned, double-click won't work until Apple is paid the
+      notarization toll.
+    </p>
+
+    <h3>I added a new calculator / command and it 404s</h3>
+    <p>
+      New <code>#[tauri::command]</code> handlers only register at startup.
+      Kill <code>bun tauri dev</code> and relaunch — the hot reloader picks
+      up Svelte changes but not Rust handler registrations.
+    </p>
+
+    <h3>I want to nuke everything and start over</h3>
+    <p>
+      Quit the app. Delete the SQLite file from the path above. Relaunch. The
+      migration runner creates a fresh database with default seeds. (Or just
+      use <em>Settings &rarr; Reset database</em>, which does the same thing
+      without the file dance.)
+    </p>
+  </section>
+
+  <div style="margin-top: 3rem;">
+    <SketchDivider />
+  </div>
+
+  <section class="next">
+    <div class="kicker">Next</div>
+    <p>
+      When you want the math under the hood — why Shin devig works on soccer
+      three-ways, how the NFL teaser EV accounts for key numbers, what makes
+      the Poisson match predictor miss on low-scoring games — read the
+      <a href={blogHref}>docs</a>. Fifteen write-ups, one per calculator
+      family.
+    </p>
+  </section>
+</Base>
+
+<style>
+  .lede {
+    margin-top: 2rem;
+    font-size: 18px;
+    line-height: 1.65;
+    color: var(--ink-secondary);
+    max-width: 640px;
+  }
+
+  .toc {
+    margin-top: 2.5rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 14px;
+  }
+  .toc .kicker {
+    margin-bottom: 0.75rem;
+  }
+  .toc ol {
+    margin: 0;
+    padding-left: 1.25rem;
+    counter-reset: toc;
+    list-style: none;
+  }
+  .toc li {
+    counter-increment: toc;
+    padding: 0.2rem 0;
+    font-size: 15px;
+  }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero) ".";
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-right: 0.5rem;
+  }
+  .toc a {
+    text-decoration: none;
+    border-bottom: 1.5px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  .toc a:hover {
+    border-bottom-color: var(--ink-primary);
+  }
+
+  .block {
+    margin-top: 3rem;
+    scroll-margin-top: 2rem;
+  }
+  .block h2 {
+    margin: 0 0 1rem 0;
+    padding-top: 2rem;
+    border-top: 1.5px solid var(--ink-primary);
+  }
+  .block h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-size: 18px;
+    margin: 2rem 0 0.5rem;
+    text-transform: uppercase;
+  }
+  .block p {
+    font-size: 16px;
+    line-height: 1.7;
+    margin: 1rem 0;
+  }
+  .block ul,
+  .block ol {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .block li {
+    margin: 0.5rem 0;
+  }
+  .block code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--bg-sunken);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+  .block pre {
+    background: var(--ink-primary);
+    color: var(--bg-card);
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 1.25rem 0;
+  }
+  .block pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
+  .steps {
+    list-style: none;
+    counter-reset: step;
+    padding-left: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 2.5rem;
+    margin: 1rem 0;
+  }
+  .steps li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0.05rem;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    letter-spacing: 0.04em;
+  }
+
+  .paths {
+    list-style: none;
+    padding-left: 0;
+  }
+  .paths li {
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--bg-sunken);
+  }
+  .paths li:first-child {
+    border-top: 1.5px solid var(--ink-primary);
+  }
+  .paths li:last-child {
+    border-bottom: 1.5px solid var(--ink-primary);
+  }
+
+  .next {
+    margin-top: 2.5rem;
+    padding: 1.5rem 1.75rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 14px;
+  }
+  .next p {
+    margin: 0.75rem 0 0;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-secondary);
+  }
+</style>
