@@ -1,52 +1,514 @@
 ---
-import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import SketchDivider from "../components/SketchDivider.astro";
 
-const posts = (await getCollection("blog")).sort(
-  (a, b) => b.data.date.getTime() - a.data.date.getTime()
-);
-
 const base = import.meta.env.BASE_URL;
-function postHref(id: string): string {
-  const clean = base.endsWith("/") ? base.slice(0, -1) : base;
-  return `${clean}/blog/${id}`;
-}
+const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+const blogHref = `${cleanBase}/blog`;
+const ghostSrc = `${cleanBase}/illustrations/ghost-sitting.svg`;
+const ghostThinking = `${cleanBase}/illustrations/ghost-thinking.svg`;
+const ghostWaving = `${cleanBase}/illustrations/ghost-waving.svg`;
 
-function fmtDate(d: Date): string {
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+const features = [
+  {
+    glyph: "TK",
+    name: "Tracker",
+    blurb:
+      "Log every bet with sportsbook, league, type, odds, fair odds, closing odds, stake, and strategy tags. Filter, edit, settle inline.",
+  },
+  {
+    glyph: "AN",
+    name: "Analytics",
+    blurb:
+      "Three-section dashboard: where you stand, are you sharp (expected vs actual, CLV beat rate), and where profit comes from.",
+  },
+  {
+    glyph: "BR",
+    name: "Bankroll",
+    blurb:
+      "Overall balance + per-sportsbook balances, sizing rule (fixed %, fixed $, fractional Kelly), editable deposit/withdrawal log.",
+  },
+  {
+    glyph: "CA",
+    name: "Calculators",
+    blurb:
+      "Twenty-one focused tools for odds math, bet sizing, market analysis, and simulations. Every result computed locally in Rust.",
+  },
+];
+
+const calcs: Record<string, Array<{ slug: string; name: string; glyph: string }>> = {
+  "Odds & probability": [
+    { slug: "odds-converter", name: "Odds Converter", glyph: "OC" },
+    { slug: "sharp-implied", name: "Sharp Implied", glyph: "SI" },
+    { slug: "devig", name: "Devig", glyph: "DV" },
+    { slug: "hold", name: "Hold", glyph: "HD" },
+    { slug: "vig-comparison", name: "Vig Comparison", glyph: "VC" },
+  ],
+  "Bet sizing & value": [
+    { slug: "expected-value", name: "Expected Value", glyph: "EV" },
+    { slug: "kelly-criterion", name: "Kelly Criterion", glyph: "KE" },
+    { slug: "parlay", name: "Parlay", glyph: "PY" },
+  ],
+  "Lines & markets": [
+    { slug: "arbitrage", name: "Arbitrage", glyph: "AR" },
+    { slug: "hedge", name: "Hedge", glyph: "HG" },
+    { slug: "clv", name: "CLV", glyph: "CV" },
+    { slug: "better-line", name: "Better Line", glyph: "BL" },
+    { slug: "alt-line-pricer", name: "Alt Line Pricer", glyph: "AL" },
+  ],
+  "Simulations": [
+    { slug: "risk-of-ruin", name: "Risk of Ruin", glyph: "RR" },
+    { slug: "poisson-match", name: "Poisson Match", glyph: "PO" },
+    { slug: "nbinom-match", name: "Neg. Binomial Match", glyph: "NB" },
+    { slug: "prop-simulator", name: "Player Prop Simulator", glyph: "PS" },
+  ],
+  "Advanced": [
+    { slug: "bayesian", name: "Bayesian Update", glyph: "BA" },
+    { slug: "regression-to-mean", name: "Regression to the Mean", glyph: "RM" },
+    { slug: "middle-finder", name: "Middle Finder", glyph: "MF" },
+    { slug: "teaser-ev", name: "Teaser EV", glyph: "TE" },
+  ],
+};
 ---
 
-<Base title="Bet Tracker Docs">
-  <header>
-    <div class="kicker">Methodology & write-ups</div>
-    <h1 class="display display-xl" style="margin-top: 0.5rem;">THE DOCS.</h1>
-  </header>
+<Base
+  title="Bet Tracker — local-first tracking + 21 analysis calculators"
+  wide={true}
+  currentNav="home"
+>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="kicker">A local-first desktop app</div>
+      <h1 class="display display-xl" style="margin-top: 0.75rem;">
+        TRACK YOUR BETS.<br />OWN YOUR DATA.
+      </h1>
+      <p class="lede">
+        A performance tracker for sports bettors who want honest math, not
+        feelgood dashboards. Twenty-one calculators built in. Everything runs
+        on your machine — no cloud, no account, no sync.
+      </p>
+      <div class="cta-row">
+        <a
+          href="https://github.com/WalrusQuant/rust-bet-tracker"
+          target="_blank"
+          rel="noopener"
+          class="btn btn-primary"
+        >
+          View on GitHub
+        </a>
+        <a href={blogHref} class="btn btn-secondary">Read the docs →</a>
+      </div>
+      <div class="badges">
+        <span class="badge">Rust + Tauri</span>
+        <span class="badge">Svelte 5</span>
+        <span class="badge">SQLite</span>
+        <span class="badge">macOS · Windows · Linux</span>
+      </div>
+    </div>
+    <div class="hero-art">
+      <img src={ghostSrc} alt="" width="200" height="175" />
+    </div>
+  </section>
 
-  <div style="margin-top: 1.5rem;">
+  <div style="margin-top: 1rem;">
     <SketchDivider />
   </div>
 
-  <p style="margin-top: 2rem; color: var(--ink-secondary); font-size: 16px; max-width: 640px;">
-    Long-form explanations of the math behind every calculator in the Bet Tracker
-    app. How to read the outputs, when each tool is the right one to reach for,
-    and where the formulas come from.
-  </p>
+  <!-- What it does -->
+  <section class="section">
+    <div class="kicker">What it does</div>
+    <h2 class="display display-lg" style="margin-top: 0.5rem;">
+      FOUR PAGES, ONE PURPOSE.
+    </h2>
 
-  <ul class="post-list" style="margin-top: 2rem;">
-    {posts.map((post) => (
-      <li>
-        <a href={postHref(post.id)}>
-          <h2>{post.data.title}</h2>
-          <div class="date">{fmtDate(post.data.date)}</div>
-          {post.data.excerpt && <p class="excerpt">{post.data.excerpt}</p>}
-        </a>
-      </li>
+    <div class="feature-grid">
+      {features.map((f) => (
+        <div class="feature">
+          <span class="icon-square">{f.glyph}</span>
+          <div>
+            <div class="feature-name">{f.name}</div>
+            <p class="feature-blurb">{f.blurb}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Calculators -->
+  <section class="section">
+    <div class="kicker">Twenty-one, on the device</div>
+    <h2 class="display display-lg" style="margin-top: 0.5rem;">
+      THE CALCULATORS.
+    </h2>
+    <p class="section-blurb">
+      Every formula runs in Rust on your machine. No network calls, no rate
+      limits, no "upgrade to pro" walls. Click any card to read the math
+      write-up in the docs.
+    </p>
+
+    {Object.entries(calcs).map(([category, items]) => (
+      <div class="calc-group">
+        <div class="calc-group-label">{category}</div>
+        <div class="calc-grid">
+          {items.map((c) => (
+            <a href={blogHref} class="calc-card">
+              <span class="calc-glyph">{c.glyph}</span>
+              <span class="calc-name">{c.name}</span>
+            </a>
+          ))}
+        </div>
+      </div>
     ))}
-  </ul>
+  </section>
+
+  <!-- Why local-first -->
+  <section class="section">
+    <div class="kicker">Why local-first</div>
+    <h2 class="display display-lg" style="margin-top: 0.5rem;">
+      YOUR DATA. YOUR COMPUTER.
+    </h2>
+
+    <div class="reasons">
+      <div class="reason">
+        <img src={ghostSrc} alt="" width="80" height="70" />
+        <h3>Nothing phones home</h3>
+        <p>
+          Bets, bankroll, and settings live in a single SQLite file on your
+          disk. No backend to hack, no analytics pixel, no vendor that can
+          shut you out or change terms.
+        </p>
+      </div>
+      <div class="reason">
+        <img src={ghostThinking} alt="" width="80" height="70" />
+        <h3>Fast, always</h3>
+        <p>
+          Every number is computed synchronously from local data. Filter 10k
+          bets, re-run Monte Carlo simulations, bucket by sportsbook — it's
+          all instant because nothing leaves the process.
+        </p>
+      </div>
+      <div class="reason">
+        <img src={ghostWaving} alt="" width="80" height="70" />
+        <h3>Yours to hack on</h3>
+        <p>
+          Open source. Rust math is unit-tested and readable. Fork it, tune
+          the Kelly cap, add a calculator — the whole thing is one commit
+          away from being exactly what you want.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech stack -->
+  <section class="section">
+    <div class="kicker">Under the hood</div>
+    <h2 class="display display-lg" style="margin-top: 0.5rem;">THE STACK.</h2>
+
+    <ul class="stack-list">
+      <li>
+        <strong>Backend:</strong> Rust · Tauri 2 · rusqlite (bundled SQLite) ·
+        statrs · rand / rand_chacha
+      </li>
+      <li>
+        <strong>Frontend:</strong> Svelte 5 (runes) · Vite 6 · Tailwind v4 ·
+        TypeScript · layerchart
+      </li>
+      <li>
+        <strong>Data:</strong> Single SQLite file per user, in the OS app-data
+        directory
+      </li>
+      <li>
+        <strong>Packaging:</strong> Tauri builds native .dmg / .msi / .AppImage
+      </li>
+    </ul>
+  </section>
+
+  <!-- Bottom CTA -->
+  <section class="bottom-cta">
+    <h2 class="display display-lg" style="margin: 0;">READY TO LOOK?</h2>
+    <p style="margin: 0.75rem 0 1.5rem; color: var(--ink-secondary);">
+      Clone the repo, read the methodology, or just lurk.
+    </p>
+    <div class="cta-row">
+      <a
+        href="https://github.com/WalrusQuant/rust-bet-tracker"
+        target="_blank"
+        rel="noopener"
+        class="btn btn-primary"
+      >
+        GitHub
+      </a>
+      <a href={blogHref} class="btn btn-secondary">Docs</a>
+    </div>
+  </section>
 </Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    align-items: center;
+    padding-top: 2rem;
+  }
+  @media (min-width: 720px) {
+    .hero {
+      grid-template-columns: 1.4fr 1fr;
+    }
+  }
+  .hero-copy {
+    max-width: 620px;
+  }
+  .hero-art {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+  }
+  .hero-art img {
+    width: 220px;
+    height: auto;
+    max-width: 100%;
+  }
+  .lede {
+    margin-top: 1.25rem;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--ink-secondary);
+    max-width: 540px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 22px;
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.18s ease, color 0.18s ease;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--ink-primary);
+    color: var(--bg-page);
+  }
+  .btn-primary:hover {
+    background: transparent;
+    color: var(--ink-primary);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--ink-primary);
+  }
+  .btn-secondary:hover {
+    background: var(--ink-primary);
+    color: var(--bg-page);
+  }
+  .badges {
+    margin-top: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .badge {
+    display: inline-flex;
+    padding: 3px 10px;
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--bg-card);
+  }
+
+  .section {
+    margin-top: 4rem;
+  }
+  .section-blurb {
+    margin-top: 1rem;
+    color: var(--ink-secondary);
+    font-size: 16px;
+    max-width: 680px;
+  }
+
+  .feature-grid {
+    margin-top: 2rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  @media (min-width: 720px) {
+    .feature-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .feature {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .feature-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+  }
+  .feature-blurb {
+    margin-top: 0.35rem;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-secondary);
+  }
+
+  .icon-square {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 10px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .calc-group {
+    margin-top: 2rem;
+  }
+  .calc-group-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-secondary);
+    margin-bottom: 0.75rem;
+  }
+  .calc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.6rem;
+  }
+  .calc-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink-primary);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .calc-card:hover {
+    background: var(--ink-primary);
+    color: var(--bg-page);
+  }
+  .calc-card:hover .calc-glyph {
+    background: var(--bg-page);
+    color: var(--ink-primary);
+  }
+  .calc-glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--bg-page);
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .calc-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .reasons {
+    margin-top: 2rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  @media (min-width: 720px) {
+    .reasons {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .reason img {
+    width: 80px;
+    height: auto;
+  }
+  .reason h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    margin: 0.75rem 0 0.5rem;
+  }
+  .reason p {
+    margin: 0;
+    font-size: 15px;
+    color: var(--ink-secondary);
+    line-height: 1.55;
+  }
+
+  .stack-list {
+    margin-top: 1.5rem;
+    padding: 0;
+    list-style: none;
+  }
+  .stack-list li {
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--bg-sunken);
+    font-size: 15px;
+    color: var(--ink-secondary);
+  }
+  .stack-list li:first-child {
+    border-top: 1.5px solid var(--ink-primary);
+  }
+  .stack-list li:last-child {
+    border-bottom: 1.5px solid var(--ink-primary);
+  }
+  .stack-list strong {
+    color: var(--ink-primary);
+  }
+
+  .bottom-cta {
+    margin-top: 5rem;
+    padding: 2.5rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--ink-primary);
+    border-radius: 14px;
+    text-align: center;
+  }
+  .bottom-cta .cta-row {
+    justify-content: center;
+  }
+</style>

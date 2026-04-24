@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" fill="none" stroke="#2A2622" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- body -->
+  <path d="M28 58 C 28 34, 46 18, 62 18 C 82 18, 96 36, 96 58 L 96 132 L 88 138 L 80 132 L 72 138 L 64 132 L 56 138 L 48 132 L 40 138 L 32 132 L 28 138 Z" fill="#FDFAF4"/>
+  <!-- eyes -->
+  <circle cx="52" cy="66" r="2.5" fill="#2A2622" stroke="none"/>
+  <circle cx="78" cy="66" r="2.5" fill="#2A2622" stroke="none"/>
+  <!-- mouth -->
+  <path d="M58 80 Q 65 86, 72 80"/>
+  <!-- waving arm -->
+  <path d="M96 76 Q 110 62, 108 46"/>
+  <path d="M102 48 Q 109 44, 114 50"/>
+  <!-- blush -->
+  <circle cx="42" cy="80" r="3" fill="#E8C8B4" stroke="none" opacity="0.6"/>
+  <circle cx="88" cy="80" r="3" fill="#E8C8B4" stroke="none" opacity="0.6"/>
+</svg>

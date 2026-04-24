@@ -4,9 +4,17 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description?: string;
+  wide?: boolean;
+  currentNav?: "home" | "blog";
 }
-const { title, description = "Documentation for the Bet Tracker calculators and methodology." } = Astro.props;
+const {
+  title,
+  description = "Local-first sports-betting performance tracker with 21 analysis calculators. Rust + Tauri + Svelte, runs on your machine.",
+  wide = false,
+  currentNav = "home",
+} = Astro.props;
 const base = import.meta.env.BASE_URL;
+const blogHref = base.endsWith("/") ? `${base}blog` : `${base}/blog`;
 ---
 
 <!doctype html>
@@ -25,18 +33,29 @@ const base = import.meta.env.BASE_URL;
   </head>
   <body>
     <nav>
-      <a href={base} class="brand">BET TRACKER DOCS.</a>
+      <a href={base} class="brand">BET TRACKER.</a>
       <div class="nav-links">
-        <a href={base}>Blog</a>
+        <a href={base} class={currentNav === "home" ? "active" : ""}>Home</a>
+        <a href={blogHref} class={currentNav === "blog" ? "active" : ""}>Docs</a>
         <a href="https://github.com/WalrusQuant/rust-bet-tracker" target="_blank" rel="noopener">GitHub</a>
       </div>
     </nav>
-    <main>
+    <main class={wide ? "wide" : ""}>
       <slot />
     </main>
     <footer>
-      <span>Bet Tracker Docs · calculator methodology</span>
-      <span>Built with Astro, styled by hand.</span>
+      <span>Bet Tracker · local-first bet tracking + analysis</span>
+      <span>
+        <a href="https://github.com/WalrusQuant/rust-bet-tracker" target="_blank" rel="noopener">GitHub</a>
+        <span style="margin: 0 0.5rem; color: var(--ink-muted);">·</span>
+        <a href={blogHref}>Docs</a>
+      </span>
     </footer>
   </body>
 </html>
+
+<style>
+  main.wide {
+    max-width: 1080px;
+  }
+</style>
