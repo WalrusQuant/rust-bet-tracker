@@ -1,0 +1,42 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = "Documentation for the Bet Tracker calculators and methodology." } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav>
+      <a href={base} class="brand">BET TRACKER DOCS.</a>
+      <div class="nav-links">
+        <a href={base}>Blog</a>
+        <a href="https://github.com/WalrusQuant/rust-bet-tracker" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <span>Bet Tracker Docs · calculator methodology</span>
+      <span>Built with Astro, styled by hand.</span>
+    </footer>
+  </body>
+</html>

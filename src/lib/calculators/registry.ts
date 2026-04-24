@@ -15,8 +15,9 @@ export interface CalcEntry {
   component: () => Promise<{ default: any }>;
 }
 
-// Base URL for the future GitHub Pages docs site. Swap when live.
-export const DOCS_BASE_URL = "https://adamwickwire.github.io/bettor-calculator";
+// Base URL for the GitHub Pages docs site deployed by .github/workflows/pages.yml.
+// Pages serves project pages at <user>.github.io/<repo>/.
+export const DOCS_BASE_URL = "https://walrusquant.github.io/rust-bet-tracker";
 
 export const CATEGORY_LABELS: Record<CalcCategory, string> = {
   odds: "Odds & probability",

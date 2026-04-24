@@ -1,0 +1,328 @@
+/* Cream/ink zine aesthetic — ported from the Tauri app's app.css */
+
+@import "katex/dist/katex.min.css";
+
+:root {
+  --bg-page: #f3ecdf;
+  --bg-card: #fdfaf4;
+  --bg-sunken: #eae2d2;
+  --ink-primary: #2a2622;
+  --ink-secondary: #6b645a;
+  --ink-muted: #a59e90;
+  --accent-soft: #d9c9a8;
+  --win: #5a7a3f;
+  --loss: #a6432f;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-primary);
+  background-color: var(--bg-page);
+  background-image: url("/rust-bet-tracker/illustrations/paper-noise.svg");
+  background-repeat: repeat;
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--ink-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-muted);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+a:hover {
+  text-decoration-color: var(--ink-primary);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+nav {
+  border-bottom: 1.5px solid var(--ink-primary);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+nav a {
+  text-decoration: none;
+}
+nav .brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+nav .nav-links {
+  display: flex;
+  gap: 2rem;
+}
+nav .nav-links a {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-bottom: 2px;
+  border-bottom: 1.5px solid transparent;
+}
+nav .nav-links a:hover,
+nav .nav-links a.active {
+  border-bottom-color: var(--ink-primary);
+}
+
+/* Typography primitives */
+.kicker {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  color: var(--ink-primary);
+}
+.display-xl {
+  font-size: clamp(36px, 5vw, 56px);
+}
+.display-lg {
+  font-size: clamp(26px, 3vw, 34px);
+}
+.display-md {
+  font-size: 20px;
+}
+
+/* Card */
+.card {
+  background-color: var(--bg-card);
+  border: 1.5px solid var(--ink-primary);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+}
+
+/* Post list */
+.post-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.post-list li {
+  padding: 1.25rem 0;
+  border-top: 1.5px solid var(--ink-primary);
+}
+.post-list li:last-child {
+  border-bottom: 1.5px solid var(--ink-primary);
+}
+.post-list a {
+  text-decoration: none;
+  display: block;
+}
+.post-list h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  font-size: clamp(20px, 2.4vw, 26px);
+  margin: 0 0 0.25rem 0;
+}
+.post-list .date {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+.post-list .excerpt {
+  margin-top: 0.5rem;
+  color: var(--ink-secondary);
+  font-size: 15px;
+}
+
+/* Prose — blog post body */
+.prose {
+  font-size: 17px;
+  line-height: 1.75;
+}
+.prose h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-size: clamp(32px, 4.5vw, 48px);
+  margin: 0 0 0.5rem 0;
+}
+.prose h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  font-size: clamp(22px, 2.5vw, 28px);
+  margin: 2.5rem 0 0.75rem 0;
+  padding-top: 2rem;
+  border-top: 1.5px solid var(--ink-primary);
+}
+.prose h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 1.5rem;
+}
+.prose h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 20px;
+  margin: 2rem 0 0.5rem 0;
+}
+.prose p {
+  margin: 1rem 0;
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+.prose li {
+  margin: 0.35rem 0;
+}
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-sunken);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose pre {
+  background: var(--ink-primary);
+  color: var(--bg-card);
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.prose pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.prose blockquote {
+  border-left: 3px solid var(--ink-primary);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: var(--ink-secondary);
+  font-style: italic;
+}
+.prose hr {
+  border: none;
+  border-top: 1.5px solid var(--ink-primary);
+  margin: 2rem 0;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 15px;
+}
+.prose th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  border-bottom: 1.5px solid var(--ink-primary);
+}
+.prose td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--bg-sunken);
+}
+
+/* KaTeX display math — center + give breathing room */
+.prose .katex-display {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+/* Footer tag pills */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1.5px solid var(--ink-primary);
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1.5px solid var(--ink-primary);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--ink-primary);
+}
+
+/* Back link */
+.back-link {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-bottom: 1.5px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.back-link:hover {
+  border-bottom-color: var(--ink-primary);
+}
+
+footer {
+  max-width: 1080px;
+  margin: 4rem auto 2rem;
+  padding: 2rem 1.5rem;
+  border-top: 1.5px solid var(--ink-primary);
+  font-size: 13px;
+  color: var(--ink-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
